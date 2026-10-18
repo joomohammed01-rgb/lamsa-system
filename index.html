@@ -1,0 +1,1236 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LAMSA - نظام إدارة شركة الدعاية والإعلان</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        gold: {
+                            50: '#fffbf0',
+                            100: '#fff3d1',
+                            300: '#fbe285',
+                            500: '#d4af37',
+                            600: '#aa820a',
+                            700: '#856100'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome للأيقونات -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- مكتبات التصدير إلى PDF وصورة -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <style>
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #363030; }
+        ::-webkit-scrollbar-thumb { background: #d4af37; border-radius: 3px; }
+
+        @media print {
+            body { background: #ffffff !important; color: #000000 !important; }
+            #login-section, #dashboard-section { display: none !important; }
+            #printable-area {
+                display: block !important;
+                position: absolute !important;
+                left: 0 !important; top: 0 !important;
+                width: 100% !important; height: auto !important;
+                margin: 0 !important; padding: 0 !important;
+                visibility: visible !important;
+            }
+            #printable-area * { visibility: visible !important; }
+            @page { size: A4 portrait; margin: 10mm; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans text-gray-800 antialiased">
+
+    <!-- 1. شاشة تسجيل الدخول -->
+    <div id="login-section" class="min-h-screen bg-neutral-900 flex flex-col justify-center items-center p-4">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold tracking-widest text-amber-500">LAMSA</h1>
+            <p class="text-xs text-neutral-400 mt-1">نظام الإدارة المتكامل</p>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md border-t-4 border-amber-500">
+            <h2 class="text-2xl font-bold text-center text-amber-600 mb-6">تسجيل الدخول</h2>
+            <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">رقم الهاتف</label>
+                    <div class="flex rounded-lg border border-gray-300 overflow-hidden focus-within:ring-2 focus-within:ring-amber-500">
+                        <span class="bg-gray-100 px-3 py-2.5 flex items-center border-l border-gray-300 text-gray-600 text-sm">
+                            <i class="fa-solid fa-phone ml-1 text-xs"></i>
+                        </span>
+                        <input type="text" id="username" required placeholder="0106392810" value="0106392810" class="w-full px-3 py-2.5 outline-none font-mono text-gray-800">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">كلمة المرور</label>
+                    <input type="password" id="password" required value="123456" placeholder="••••••••" class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-amber-500 outline-none font-mono">
+                </div>
+
+                <div class="flex items-center justify-between pt-2">
+                    <a href="#" class="text-xs text-amber-600 hover:underline">هل نسيت كلمة المرور؟</a>
+                    <button type="submit" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 px-8 rounded-lg shadow-md transition duration-200">تسجيل الدخول</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 2. لوحة التحكم الرئيسية -->
+    <div id="dashboard-section" class="hidden min-h-screen flex flex-col bg-gray-100">
+        
+        <header class="bg-neutral-900 text-white border-b border-amber-500/30 px-6 py-3 flex justify-between items-center shadow-md">
+            <div class="flex items-center space-x-2 space-x-reverse cursor-pointer" onclick="switchTab('home')">
+                <span class="text-xl font-bold tracking-wider text-amber-500">LAMSA</span>
+            </div>
+
+            <div class="flex items-center space-x-4 space-x-reverse">
+                <div class="flex items-center space-x-3 space-x-reverse">
+                    <div class="w-9 h-9 rounded-full bg-amber-500 text-neutral-900 flex items-center justify-center font-bold text-sm">
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+                    <div class="hidden sm:block text-right">
+                        <span id="display-username" class="block text-sm font-bold text-amber-400">م/ يوسف محمد</span>
+                        <span id="display-role" class="block text-xs text-gray-400">مدير النظام</span>
+                    </div>
+                </div>
+                <button onclick="handleLogout()" class="text-gray-400 hover:text-red-400 text-sm mr-4 transition" title="تسجيل الخروج">
+                    <i class="fa-solid fa-right-from-bracket text-lg"></i>
+                </button>
+            </div>
+        </header>
+
+        <div class="flex flex-1 overflow-hidden">
+            
+            <!-- القائمة الجانبية -->
+            <aside class="w-64 bg-neutral-900 text-gray-300 flex flex-col justify-between border-l border-neutral-800 shadow-xl shrink-0">
+                <div class="py-4">
+                    <nav class="space-y-1">
+                        <a href="#" onclick="switchTab('home')" id="nav-home" class="flex items-center justify-between px-5 py-3 text-sm font-semibold bg-amber-500 text-neutral-900 border-r-4 border-amber-400 shadow-lg">
+                            <span class="flex items-center"><i class="fa-solid fa-house ml-3 text-base"></i> الرئيسية </span>
+                        </a>
+
+                        <div role="perm-users" class="py-1">
+                            <a href="#" onclick="switchTab('users')" id="nav-users" class="flex items-center justify-between px-5 py-3 text-sm font-medium hover:bg-neutral-800 hover:text-amber-400 transition">
+                                <span class="flex items-center"><i class="fa-solid fa-user-plus ml-3 text-base"></i> إدارة الموظفين</span>
+                                <i class="fa-solid fa-chevron-left text-xs text-gray-500"></i>
+                            </a>
+                        </div>
+
+                        <div role="perm-clients" class="py-1">
+                            <a href="#" onclick="switchTab('clients')" id="nav-clients" class="flex items-center justify-between px-5 py-3 text-sm font-medium hover:bg-neutral-800 hover:text-amber-400 transition">
+                                <span class="flex items-center"><i class="fa-solid fa-users ml-3 text-base"></i> إدارة العملاء</span>
+                                <i class="fa-solid fa-chevron-left text-xs text-gray-500"></i>
+                            </a>
+                        </div>
+
+                        <div role="perm-clients" class="py-1">
+                            <a href="#" onclick="openClientLedger()" id="nav-client-ledger" class="flex items-center justify-between px-5 py-3 text-sm font-medium hover:bg-neutral-800 hover:text-amber-400 transition">
+                                <span class="flex items-center"><i class="fa-solid fa-file-invoice-dollar ml-3 text-base"></i> حسابات العملاء</span>
+                                <i class="fa-solid fa-chevron-left text-xs text-gray-500"></i>
+                            </a>
+                        </div>
+
+                        <div role="perm-products" class="py-1">
+                            <a href="#" onclick="switchTab('products')" id="nav-products" class="flex items-center justify-between px-5 py-3 text-sm font-medium hover:bg-neutral-800 hover:text-amber-400 transition">
+                                <span class="flex items-center"><i class="fa-solid fa-boxes-stacked ml-3 text-base"></i> إدارة المنتجات والخامات</span>
+                                <i class="fa-solid fa-chevron-left text-xs text-gray-500"></i>
+                            </a>
+                        </div>
+
+                        <!-- إدارة المخازن المضافة في القائمة الجانبية -->
+                        <div role="perm-inventory" class="py-1">
+                            <a href="#" onclick="switchTab('inventory')" id="nav-inventory" class="flex items-center justify-between px-5 py-3 text-sm font-medium hover:bg-neutral-800 hover:text-amber-400 transition">
+                                <span class="flex items-center"><i class="fa-solid fa-warehouse ml-3 text-base"></i> إدارة المخازن</span>
+                                <i class="fa-solid fa-chevron-left text-xs text-gray-500"></i>
+                            </a>
+                        </div>
+
+                        <div role="perm-operations" class="py-1 space-y-1">
+                            <div class="px-5 py-2 text-xs font-bold text-amber-500/80 uppercase tracking-wider flex items-center">
+                                <i class="fa-solid fa-gears ml-2"></i> إدارة التشغيل
+                            </div>
+                            <a href="#" onclick="switchTab('projects')" id="nav-projects" class="flex items-center justify-between pr-8 pl-5 py-2.5 text-sm font-medium hover:bg-neutral-800 hover:text-amber-400 transition">
+                                <span class="flex items-center"><i class="fa-solid fa-folder-open ml-2.5 text-amber-400/80"></i> المشاريع</span>
+                                <i class="fa-solid fa-chevron-left text-xs text-gray-500"></i>
+                            </a>
+                            <a href="#" onclick="switchTab('orders')" id="nav-orders" class="flex items-center justify-between pr-8 pl-5 py-2.5 text-sm font-medium hover:bg-neutral-800 hover:text-amber-400 transition">
+                                <span class="flex items-center"><i class="fa-solid fa-file-signature ml-2.5 text-amber-400/80"></i> أوامر التشغيل</span>
+                                <i class="fa-solid fa-chevron-left text-xs text-gray-500"></i>
+                            </a>
+                        </div>
+
+                        <div role="perm-sales" class="py-1">
+                            <a href="#" onclick="switchTab('sales')" id="nav-sales" class="flex items-center justify-between px-5 py-3 text-sm font-medium hover:bg-neutral-800 hover:text-amber-400 transition">
+                                <span class="flex items-center"><i class="fa-solid fa-chart-line ml-3 text-base"></i> إدارة المبيعات</span>
+                                <i class="fa-solid fa-chevron-left text-xs text-gray-500"></i>
+                            </a>
+                        </div>
+
+                        <div role="perm-finance" class="py-1">
+                            <a href="#" onclick="switchTab('finance')" id="nav-finance" class="flex items-center justify-between px-5 py-3 text-sm font-medium hover:bg-neutral-800 hover:text-amber-400 transition">
+                                <span class="flex items-center"><i class="fa-solid fa-calculator ml-3 text-base"></i> إدارة الحسابات والمالية</span>
+                                <i class="fa-solid fa-chevron-left text-xs text-gray-500"></i>
+                            </a>
+                        </div>
+                        <div role="perm-trash" class="py-1">
+                            <a href="#" onclick="switchTab('trash-bin')" id="nav-trash-bin" class="flex items-center justify-between px-5 py-3 text-sm font-medium hover:bg-neutral-800 hover:text-amber-400 transition">
+                                <span class="flex items-center"><i class="fa-solid fa-trash-can ml-3 text-base"></i> المهملات</span>
+                                <i class="fa-solid fa-chevron-left text-xs text-gray-500"></i>
+                            </a>
+                        </div>
+                    </nav>
+                </div>
+            </aside>
+
+            <main class="flex-1 p-6 overflow-y-auto">
+                
+                <!-- 1. الرئيسية -->
+<div id="tab-home" class="tab-page space-y-6">
+    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <!-- أوامر التشغيل -->
+        <div onclick="switchTab('orders')" class="bg-white p-4 rounded-xl border-l-4 border-l-blue-500 shadow-sm hover:shadow-md cursor-pointer transition transform hover:-translate-y-1">
+            <div class="flex justify-between items-center mb-1">
+                <p class="text-[11px] text-gray-500 font-bold">أوامر التشغيل</p>
+                <i class="fa-solid fa-file-signature text-blue-500 text-base"></i>
+            </div>
+            <h3 id="stat-operations-count" class="text-xl font-black text-gray-800">0 أمر</h3>
+            <p class="text-[9px] text-blue-600 mt-2 font-bold">اضغط للمعاينة وإضافة أصل تشغيل ←</p>
+        </div>
+
+        <!-- المشاريع المسجلة -->
+        <div onclick="switchTab('projects')" class="bg-white p-4 rounded-xl border-l-4 border-l-amber-500 shadow-sm hover:shadow-md cursor-pointer transition transform hover:-translate-y-1">
+            <div class="flex justify-between items-center mb-1">
+                <p class="text-[11px] text-gray-500 font-bold">المشاريع المسجلة</p>
+                <i class="fa-solid fa-folder-open text-amber-500 text-base"></i>
+            </div>
+            <h3 id="stat-projects-count" class="text-xl font-black text-amber-600">0 مشروع</h3>
+            <p class="text-[9px] text-amber-600 mt-2 font-bold">عرض شجرة المشاريع ←</p>
+        </div>
+
+        <!-- العملاء والشركات -->
+        <div onclick="switchTab('clients')" class="bg-white p-4 rounded-xl border-l-4 border-l-purple-500 shadow-sm hover:shadow-md cursor-pointer transition transform hover:-translate-y-1">
+            <div class="flex justify-between items-center mb-1">
+                <p class="text-[11px] text-gray-500 font-bold">العملاء والشركات</p>
+                <i class="fa-solid fa-users text-purple-500 text-base"></i>
+            </div>
+            <h3 id="stat-clients-count" class="text-xl font-black text-purple-600">0 عملاء</h3>
+            <p class="text-[9px] text-purple-600 mt-2 font-bold">دليل العملاء والحسابات ←</p>
+        </div>
+
+        <!-- رصيد الخزينة اللحظي -->
+        <div onclick="switchTab('finance')" class="bg-white p-4 rounded-xl border-l-4 border-l-emerald-500 shadow-sm hover:shadow-md cursor-pointer transition transform hover:-translate-y-1">
+            <div class="flex justify-between items-center mb-1">
+                <p class="text-[11px] text-gray-500 font-bold">رصيد الخزينة اللحظي</p>
+                <i class="fa-solid fa-wallet text-emerald-500 text-base"></i>
+            </div>
+            <h3 id="stat-finance-total" class="text-xl font-black text-emerald-600">0 ج.م</h3>
+            <p class="text-[9px] text-emerald-600 mt-2 font-bold">حركة الوارد والمنصرف بالتفصيل ←</p>
+        </div>
+
+        <!-- إجمالي المتبقي عند العملاء (مضافة حديثاً) -->
+        <div onclick="openClientLedger()" class="bg-white p-4 rounded-xl border-l-4 border-l-red-500 shadow-sm hover:shadow-md cursor-pointer transition transform hover:-translate-y-1">
+            <div class="flex justify-between items-center mb-1">
+                <p class="text-[11px] text-gray-500 font-bold">إجمالي المتبقي عند العملاء</p>
+                <i class="fa-solid fa-hand-holding-dollar text-red-500 text-base"></i>
+            </div>
+            <h3 id="stat-home-total-dues" class="text-xl font-black text-red-600 font-mono">0 ج.م</h3>
+            <p class="text-[9px] text-red-600 mt-2 font-bold">عرض كشف حسابات العملاء ←</p>
+        </div>
+
+        <!-- كم عرض سعر اتعمل (مضافة حديثاً) -->
+        <div onclick="switchTab('sales')" class="bg-white p-4 rounded-xl border-l-4 border-l-teal-500 shadow-sm hover:shadow-md cursor-pointer transition transform hover:-translate-y-1">
+            <div class="flex justify-between items-center mb-1">
+                <p class="text-[11px] text-gray-500 font-bold">عروض الأسعار الصادرة</p>
+                <i class="fa-solid fa-calculator text-teal-500 text-base"></i>
+            </div>
+            <h3 id="stat-home-quotes-count" class="text-xl font-black text-teal-600">0 عرض</h3>
+            <p class="text-[9px] text-teal-600 mt-2 font-bold">متابعة سجل عروض الأسعار ←</p>
+        </div>
+    </div>
+</div>
+                <!-- 2. إدارة الموظفين -->
+
+                <div id="tab-users" class="tab-page hidden space-y-6">
+    <div class="flex justify-between items-center bg-white p-6 rounded-xl border shadow-sm">
+        <div>
+            <h2 class="text-xl font-bold text-gray-800"><i class="fa-solid fa-users-gear text-amber-500 ml-2"></i> إدارة الموظفين </h2>
+        </div>
+        <button onclick="openUserPage()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 px-5 rounded-lg text-xs shadow flex items-center">
+            <i class="fa-solid fa-user-plus ml-2"></i> إضافة موظف جديد
+        </button>
+    </div>
+
+    <div class="bg-white rounded-xl border shadow-sm p-4 overflow-x-auto">
+        <table class="w-full text-right text-xs">
+            <thead class="bg-gray-50 border-b">
+                <tr>
+                    <th class="p-3">اسم الموظف</th>
+                    <th class="p-3">رقم الهاتف</th>
+                    <th class="p-3">الصلاحية العامّة</th>
+                    <th class="p-3">الصلاحيات المخصصة</th>
+                    <th class="p-3 text-center">الإجراءات</th>
+                </tr>
+            </thead>
+            <tbody id="employees-table-body" class="divide-y"></tbody>
+        </table>
+    </div>
+</div>
+
+<div id="page-user-form" class="tab-page hidden space-y-6">
+    <div class="flex justify-between items-center bg-white p-6 rounded-xl border shadow-sm">
+        <h2 id="user-page-title" class="text-xl font-bold text-gray-800"><i class="fa-solid fa-user-plus text-amber-500 ml-2"></i> إضافة موظف جديد</h2>
+        <button onclick="switchTab('users')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg text-xs flex items-center">
+            <i class="fa-solid fa-arrow-right ml-2"></i> إلغاء والعودة للقائمة
+        </button>
+    </div>
+
+    <div class="bg-white rounded-xl border shadow-sm p-6 max-w-3xl">
+        <form onsubmit="saveEmployee(event)" class="space-y-4">
+            <input type="hidden" id="edit-user-ph">
+            
+            <div>
+                <label class="block text-xs font-bold text-gray-700 mb-1">اسم الموظف</label>
+                <input type="text" id="new-name" required placeholder="م/ أحمد إبراهيم" class="w-full px-3 py-2 border rounded-lg text-xs outline-none focus:ring-2 focus:ring-amber-500">
+            </div>
+            
+            <div>
+                <label class="block text-xs font-bold text-gray-700 mb-1">رقم الهاتف (اسم الدخول)</label>
+                <input type="text" id="new-phone" required placeholder="01012345678" class="w-full px-3 py-2 border rounded-lg text-xs outline-none font-mono focus:ring-2 focus:ring-amber-500">
+            </div>
+            
+            <div>
+                <label class="block text-xs font-bold text-gray-700 mb-1">كلمة السر</label>
+                <div class="relative">
+                    <input type="password" id="new-pass" placeholder="••••••••" class="w-full px-3 py-2 border rounded-lg text-xs outline-none pl-10 font-mono" required>
+                    <button type="button" onclick="toggleEmployeePassword()" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-amber-600 focus:outline-none">
+                        <i id="toggle-emp-pass-icon" class="fa-solid fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div>
+                <label class="block text-xs font-bold text-gray-700 mb-1">الصلاحية الرئيسية</label>
+                <select id="new-role" class="w-full px-3 py-2 border rounded-lg text-xs outline-none bg-white focus:ring-2 focus:ring-amber-500">
+                    <option value="engineer">مهندس تشغيل</option>
+                    <option value="accountant">محاسب ماليات</option>
+                    <option value="admin">مدير نظام Admin</option>
+                </select>
+            </div>
+
+<!-- جدول الصلاحيات الشامل المطابق للقائمة الجانبية -->
+            <div class="border rounded-lg p-4 bg-gray-50 space-y-3 mt-4">
+                <label class="block text-xs font-bold text-gray-800 border-b pb-2">
+                    <i class="fa-solid fa-user-shield text-amber-500 ml-1"></i> صلاحيات الوصول والتعديل والحذف لأقسام القائمة الجانبية:
+                </label>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs text-right border-collapse bg-white border">
+                        <thead class="bg-gray-100 font-bold">
+                            <tr>
+                                <th class="p-2 border">القسم / الصفحة</th>
+                                <th class="p-2 border text-center">عرض الصفحة</th>
+                                <th class="p-2 border text-center">حق التعديل</th>
+                                <th class="p-2 border text-center">حق الحذف</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="border-b">
+                                <td class="p-2 border font-bold">الرئيسية</td>
+                                <td class="p-2 border text-center"><input type="checkbox" id="perm-view-home"></td>
+                                <td class="p-2 border text-center">—</td>
+                                <td class="p-2 border text-center">—</td>
+                            </tr>
+                            <tr class="border-b">
+                                <td class="p-2 border font-bold">إدارة الموظفين</td>
+                                <td class="p-2 border text-center"><input type="checkbox" id="perm-view-users"></td>
+                                <td class="p-2 border text-center"><input type="checkbox" id="perm-edit-user"></td>
+                                <td class="p-2 border text-center"><input type="checkbox" id="perm-delete-user"></td>
+                            </tr>
+                            <tr class="border-b">
+                                <td class="p-2 border font-bold">إدارة العملاء</td>
+                                <td class="p-2 border text-center"><input type="checkbox" id="perm-view-clients"></td>
+                                <td class="p-2 border text-center"><input type="checkbox" id="perm-edit-client"></td>
+                                <td class="p-2 border text-center"><input type="checkbox" id="perm-delete-client"></td>
+                            </tr>
+                            <tr class="border-b">
+                                <td class="p-2 border font-bold">حسابات العملاء</td>
+                                <td class="p-2 border text-center"><input type="checkbox" id="perm-view-client-ledger"></td>
+                                <td class="p-2 border text-center"><input type="checkbox" id="perm-edit-client-ledger"></td>
+                                <td class="p-2 border text-center"><input type="checkbox" id="perm-delete-client-ledger"></td>
+                            </tr>
+                            <tr class="border-b">
+                                <td class="p-2 border font-bold">إدارة المنتجات والخامات</td>
+                                <td class="p-2 border text-center"><input type="checkbox" id="perm-view-products"></td>
+                                <td class="p-2 border text-center"><input type="checkbox" id="perm-edit-product"></td>
+                                <td class="p-2 border text-center"><input type="checkbox" id="perm-delete-product"></td>
+                            </tr>
+                            <tr class="border-b">
+                                <td class="p-2 border font-bold">إدارة المخازن</td>
+                                <td class="p-2 border text-center"><input type="checkbox" id="perm-view-inventory"></td>
+                                <td class="p-2 border text-center"><input type="checkbox" id="perm-edit-inventory"></td>
+                                <td class="p-2 border text-center"><input type="checkbox" id="perm-delete-inventory"></td>
+                            </tr>
+                            <tr class="border-b">
+                                <td class="p-2 border font-bold">إدارة التشغيل</td>
+                                <td class="p-2 border text-center"><input type="checkbox" id="perm-view-operations"></td>
+                                <td class="p-2 border text-center"><input type="checkbox" id="perm-edit-operations"></td>
+                                <td class="p-2 border text-center"><input type="checkbox" id="perm-delete-operations"></td>
+                            </tr>
+                            <tr class="border-b">
+                                <td class="p-2 border font-bold">المشاريع</td>
+                                <td class="p-2 border text-center"><input type="checkbox" id="perm-view-projects"></td>
+                                <td class="p-2 border text-center"><input type="checkbox" id="perm-edit-project"></td>
+                                <td class="p-2 border text-center"><input type="checkbox" id="perm-delete-project"></td>
+                            </tr>
+                            <tr class="border-b">
+                                <td class="p-2 border font-bold">أوامر التشغيل</td>
+                                <td class="p-2 border text-center"><input type="checkbox" id="perm-view-orders"></td>
+                                <td class="p-2 border text-center"><input type="checkbox" id="perm-edit-order"></td>
+                                <td class="p-2 border text-center"><input type="checkbox" id="perm-delete-order"></td>
+                            </tr>
+                            <tr class="border-b">
+                                <td class="p-2 border font-bold">إدارة المبيعات</td>
+                                <td class="p-2 border text-center"><input type="checkbox" id="perm-view-sales"></td>
+                                <td class="p-2 border text-center"><input type="checkbox" id="perm-edit-sales"></td>
+                                <td class="p-2 border text-center"><input type="checkbox" id="perm-delete-sales"></td>
+                            </tr>
+                            <tr class="border-b">
+                                <td class="p-2 border font-bold">إدارة الحسابات والمالية</td>
+                                <td class="p-2 border text-center"><input type="checkbox" id="perm-view-finance"></td>
+                                <td class="p-2 border text-center"><input type="checkbox" id="perm-edit-finance"></td>
+                                <td class="p-2 border text-center"><input type="checkbox" id="perm-delete-finance"></td>
+                            </tr>
+                            <tr class="border-b">
+                                <td class="p-2 border font-bold">المهملات</td>
+                                <td class="p-2 border text-center"><input type="checkbox" id="perm-view-trash"></td>
+                                <td class="p-2 border text-center">—</td>
+                                <td class="p-2 border text-center"><input type="checkbox" id="perm-delete-trash"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="flex justify-end space-x-2 space-x-reverse pt-2">
+                <button type="button" onclick="switchTab('users')" class="px-5 py-2.5 bg-gray-200 rounded-lg text-xs font-bold">إلغاء</button>
+                <button type="submit" class="px-7 py-2.5 bg-amber-500 text-white rounded-lg text-xs font-bold hover:bg-amber-600 shadow">حفظ بيانات الموظف</button>
+            </div>
+        </form>
+    </div>
+</div>
+                <!-- 3. إدارة العملاء -->
+                <div id="tab-clients" class="tab-page hidden space-y-6">
+                    <div class="flex justify-between items-center bg-white p-6 rounded-xl border shadow-sm">
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-800"><i class="fa-solid fa-building text-amber-500 ml-2"></i> إدارة العملاء </h2>
+                        </div>
+                        <button onclick="openClientPage()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 px-5 rounded-lg text-xs shadow flex items-center">
+                            <i class="fa-solid fa-plus ml-2"></i> إضافة عميل جديد
+                        </button>
+                    </div>
+
+                    <div class="bg-white rounded-xl border shadow-sm p-4 overflow-x-auto">
+                        <table class="w-full text-right text-xs">
+                            <thead class="bg-gray-50 border-b">
+                                <tr>
+                                    <th class="p-3">اسم العميل</th>
+                                    <th class="p-3">رقم للتواصل</th>
+                                    <th class="p-3">الإيميل</th>
+                                    <th class="p-3">العنوان</th>
+
+                                    <th class="p-3 text-center">الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="clients-table-body" class="divide-y"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="page-client-form" class="tab-page hidden space-y-6">
+    <div class="flex justify-between items-center bg-white p-6 rounded-xl border shadow-sm">
+        <h2 id="client-page-title" class="text-xl font-bold text-gray-800"><i class="fa-solid fa-user-plus text-amber-500 ml-2"></i> إضافة عميل جديد</h2>
+        <button onclick="switchTab('clients')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg text-xs flex items-center">
+            <i class="fa-solid fa-arrow-right ml-2"></i> إلغاء والعودة للعملاء
+        </button>
+    </div>
+
+    <div class="bg-white rounded-xl border shadow-sm p-6 max-w-2xl">
+        <form onsubmit="saveClient(event)" class="space-y-4" autocomplete="off">
+            <input type="hidden" id="edit-client-index">
+            
+            <div>
+                <label class="block text-xs font-bold text-gray-700 mb-1">اسم العميل <span class="text-red-500">*</span></label>
+                <input type="text" id="client-name" required placeholder="شركة رواد مصر" autocomplete="off" class="w-full px-3 py-2 border rounded-lg text-xs outline-none focus:ring-2 focus:ring-amber-500">
+            </div>
+            
+            <div>
+                <label class="block text-xs font-bold text-gray-700 mb-1">رقم للتواصل <span class="text-red-500">*</span></label>
+                <input type="text" id="client-phone" required placeholder="01122334455" autocomplete="off" class="w-full px-3 py-2 border rounded-lg text-xs outline-none font-mono focus:ring-2 focus:ring-amber-500">
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-700 mb-1">نوع العميل</label>
+                <select id="client-type" class="w-full px-3 py-2 border rounded-lg text-xs outline-none bg-white focus:ring-2 focus:ring-amber-500">
+                    <option value="A">عميل مباشر (A)</option>
+                    <option value="B">عميل ورشة / B2B (B)</option>
+                </select>
+            </div>
+            
+            <div>
+                <label class="block text-xs font-bold text-gray-700 mb-1">الإيميل <span class="text-gray-400 font-normal">(اختياري)</span></label>
+                <input type="email" id="client-email" placeholder="client@domain.com" autocomplete="off" class="w-full px-3 py-2 border rounded-lg text-xs outline-none focus:ring-2 focus:ring-amber-500">
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-700 mb-1">العنوان <span class="text-gray-400 font-normal">(اختياري)</span></label>
+                <input type="text" id="client-address" placeholder="القاهرة - المعادي" autocomplete="off" class="w-full px-3 py-2 border rounded-lg text-xs outline-none focus:ring-2 focus:ring-amber-500">
+            </div>
+
+            <div class="flex justify-end space-x-2 space-x-reverse pt-4">
+                <button type="button" onclick="switchTab('clients')" class="px-5 py-2.5 bg-gray-200 rounded-lg text-xs font-bold">إلغاء</button>
+                <button type="submit" class="px-7 py-2.5 bg-amber-500 text-white rounded-lg text-xs font-bold hover:bg-amber-600 shadow">حفظ العميل</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+                <!-- شاشة حسابات العملاء -->
+                <div id="tab-client-ledger" class="tab-page hidden space-y-6">
+                    <div class="flex justify-between items-center bg-white p-6 rounded-xl border shadow-sm">
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-800"><i class="fa-solid fa-file-invoice-dollar text-amber-500 ml-2"></i> حسابات العملاء</h2>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl border shadow-sm p-6 space-y-4">
+                        <div class="overflow-x-auto pt-2">
+                            <table id="client-ledger-table" class="w-full text-right text-xs border-collapse">
+                                <thead class="bg-gray-100 border">
+                                    <tr>
+                                        <th class="p-3 border text-center">#</th>
+                                        <th class="p-3 border text-right">اسم العميل</th>
+                                        <th class="p-3 border text-center">رقم الهاتف</th>
+                                        <th class="p-3 border text-center text-blue-700">إجمالي الأعمال (+)</th>
+                                        <th class="p-3 border text-center text-emerald-700">المدفوع (-)</th>
+                                        <th class="p-3 border text-center text-red-700">المتبقي</th>
+                                        <th class="p-3 border text-center">التقرير</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="client-ledger-tbody" class="divide-y border"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. إدارة المنتجات والخامات -->
+                <div id="tab-products" class="tab-page hidden space-y-6">
+                    <div class="flex justify-between items-center bg-white p-6 rounded-xl border shadow-sm">
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-800"><i class="fa-solid fa-boxes-stacked text-amber-500 ml-2"></i> إدارة المنتجات والخامات</h2>
+                        </div>
+                        <div class="flex space-x-2 space-x-reverse">
+                            <button onclick="openCategoryPage()" class="bg-gray-800 hover:bg-black text-white font-bold py-2.5 px-4 rounded-lg text-xs shadow flex items-center">
+                                <i class="fa-solid fa-list-check ml-2"></i> التصنيفات
+                            </button>
+                            <button onclick="openProductPage()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 px-5 rounded-lg text-xs shadow flex items-center">
+                                <i class="fa-solid fa-plus ml-2"></i> إضافة منتج / خامة
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl border shadow-sm p-4 overflow-x-auto">
+                        <table class="w-full text-right text-xs">
+<thead class="bg-gray-50 border-b">
+    <tr class="text-center">
+        <th class="p-3 text-right">اسم الخامة / المنتج</th>
+        <th class="p-3">التصنيف</th>
+        <th class="p-3">نوع آلية الاحتساب</th>
+        <th class="p-3">سعر البيع (للمتر/العدد)</th>
+        <th class="p-3 text-red-600">سعر التكلفة (الخامة)</th>
+        <th class="p-3">الإجراءات</th>
+    </tr>
+</thead>
+<tbody id="products-table-body" class="divide-y"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+<!-- شاشة المخازن وجرد الخامات المحدثة -->
+<div id="tab-inventory" class="tab-page hidden space-y-6">
+    <div class="flex justify-between items-center bg-white p-6 rounded-xl border shadow-sm">
+        <div>
+            <h2 class="text-xl font-bold text-gray-800"><i class="fa-solid fa-warehouse text-amber-500 ml-2"></i> إدارة المخازن وجرد الخامات</h2>
+            <p class="text-xs text-gray-500 mt-1">عرض الأرصدة المتاحة للطباعة والخامات ومتابعة قيم التسعير والتكلفة</p>
+        </div>
+<button onclick="openInventoryPage()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 px-5 rounded-lg text-xs shadow flex items-center gap-2 transition-all">
+    <i class="fa-solid fa-plus"></i> إضافة صنف / خامة للمخزن
+</button>        
+    </div>
+
+    <div class="bg-white rounded-xl border shadow-sm p-4 overflow-x-auto">
+        <table class="w-full text-right text-xs">
+    <thead class="bg-gray-50 border-b">
+        <tr class="text-center">
+            <th class="p-3 text-right">اسم الصنف / الخامة</th>
+            <th class="p-3">التصنيف</th>
+            <th class="p-3">الرصيد المتاح</th>
+            <th class="p-3 text-red-600">سعر تكلفة الوحدة</th>
+            <th class="p-3 text-blue-600">إجمالي قيمة المخزون</th>
+            <th class="p-3">الإجراءات</th>
+        </tr>
+    </thead>
+    <tbody id="inventory-table-body" class="divide-y"></tbody>
+</table>
+    </div>
+</div>
+
+<!-- صفحة إضافة / تعديل صنف بالمخزن -->
+<div id="page-inventory-form" class="tab-page hidden space-y-6">
+    <div class="flex justify-between items-center bg-white p-6 rounded-xl border shadow-sm">
+        <h2 id="inventory-page-title" class="text-xl font-bold text-gray-800"><i class="fa-solid fa-boxes-packing text-amber-500 ml-2"></i> إضافة صنف جديد للمخزن</h2>
+        <button onclick="switchTab('inventory')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg text-xs flex items-center gap-2">
+            <i class="fa-solid fa-arrow-right"></i> إلغاء والعودة للمخزن
+        </button>
+    </div>
+
+    <div class="bg-white rounded-xl border shadow-sm p-6 max-w-xl mx-auto">
+        <form onsubmit="saveInventoryItem(event)" class="space-y-4">
+            <input type="hidden" id="edit-inventory-index">
+            <div>
+                <label class="block text-xs font-bold text-gray-700 mb-1">اسم الصنف / الخامة</label>
+                <input type="text" id="inv-item-name" required placeholder="بنر إيكوسولفنت 380 جرام" class="w-full px-3 py-2 border rounded-lg text-xs outline-none focus:ring-2 focus:ring-amber-500">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-gray-700 mb-1">التصنيف</label>
+                <select id="inv-item-cat" class="product-cat-select w-full px-3 py-2 border rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-amber-500"></select>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">الكمية / الرصيد المتاح</label>
+                    <input type="number" id="inv-item-qty" step="any" placeholder="100" required class="w-full px-3 py-2 border rounded-lg text-xs font-mono font-bold outline-none focus:ring-2 focus:ring-amber-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">وحدة القياس</label>
+                    <select id="inv-item-unit" class="w-full px-3 py-2 border rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-amber-500">
+                        <option value="قطعة" selected>لوح</option>
+                        <option value="قطعة" selected>قطعه</option>
+                    </select>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">سعر التكلفة (ج.م)</label>
+                    <input type="number" id="inv-item-cost" step="any" placeholder="180" class="w-full px-3 py-2 border rounded-lg text-xs font-mono font-bold bg-red-50/50 outline-none focus:ring-2 focus:ring-amber-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">سعر البيع الافتراضي (ج.م)</label>
+                    <input type="number" id="inv-item-price" step="any" placeholder="350" class="w-full px-3 py-2 border rounded-lg text-xs font-mono font-bold bg-emerald-50/50 outline-none focus:ring-2 focus:ring-amber-500">
+                </div>
+            </div>
+            <div class="flex justify-end space-x-2 space-x-reverse pt-2">
+                <button type="button" onclick="switchTab('inventory')" class="px-5 py-2.5 bg-gray-200 rounded-lg text-xs font-bold">إلغاء</button>
+                <button type="submit" class="px-7 py-2.5 bg-amber-500 text-white rounded-lg text-xs font-bold hover:bg-amber-600 shadow">حفظ الصنف بالخزينة</button>
+            </div>
+        </form>
+    </div>
+</div>
+                <div id="page-product-form" class="tab-page hidden space-y-6">
+                    <div class="flex justify-between items-center bg-white p-6 rounded-xl border shadow-sm">
+                        <h2 id="product-page-title" class="text-xl font-bold text-gray-800"><i class="fa-solid fa-box text-amber-500 ml-2"></i> إضافة منتج جديد</h2>
+                        <button onclick="switchTab('products')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg text-xs flex items-center">
+                            <i class="fa-solid fa-arrow-right ml-2"></i> إلغاء والعودة
+                        </button>
+                    </div>
+
+                    <div class="bg-white rounded-xl border shadow-sm p-6 max-w-xl">
+                        <form onsubmit="saveProduct(event)" class="space-y-4">
+                            <input type="hidden" id="edit-product-index">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1">اسم المنتَج / الخامة</label>
+                                <input type="text" id="product-name" required placeholder="بنر إيكوسولفنت 380 جرام" class="w-full px-3 py-2 border rounded-lg text-xs outline-none focus:ring-2 focus:ring-amber-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1">التصنيف</label>
+                                <select id="product-category" class="product-cat-select w-full px-3 py-2 border rounded-lg text-xs outline-none bg-white focus:ring-2 focus:ring-amber-500"></select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1">طريقة الحساب والتسعير ووحدة القياس</label>
+                                <select id="product-price-type" class="w-full px-3 py-2 border rounded-lg text-xs outline-none bg-white focus:ring-2 focus:ring-amber-500">
+                                    <option value="sqm">بالمتر المربع (Sq. Meter - m²)</option>
+                                    <option value="lm">بالمتر الطولي (Linear Meter - m)</option>
+                                    <option value="unit">بالقطعة / العدد (Unit)</option>
+                                </select>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1">سعر البيع للعميل (ج.م)</label>
+                                    <input type="number" id="product-price" step="any" placeholder="350" required class="w-full px-3 py-2 border rounded-lg text-xs font-mono font-bold outline-none focus:ring-2 focus:ring-amber-500">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1">سعر التكلفة / الشراء (ج.م)</label>
+                                    <input type="number" id="product-cost" step="any" placeholder="180" class="w-full px-3 py-2 border rounded-lg text-xs font-mono font-bold bg-red-50/50 outline-none focus:ring-2 focus:ring-amber-500">
+                                </div>
+                            </div>
+                            <div class="flex justify-end space-x-2 space-x-reverse pt-2">
+                                <button type="button" onclick="switchTab('products')" class="px-5 py-2.5 bg-gray-200 rounded-lg text-xs font-bold">إلغاء</button>
+                                <button type="submit" class="px-7 py-2.5 bg-amber-500 text-white rounded-lg text-xs font-bold hover:bg-amber-600 shadow">حفظ الخامة</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div id="page-category-form" class="tab-page hidden space-y-6">
+                    <div class="flex justify-between items-center bg-white p-6 rounded-xl border shadow-sm">
+                        <h2 class="text-xl font-bold text-gray-800"><i class="fa-solid fa-tags text-amber-500 ml-2"></i> إدارة تصنيفات المنتجات</h2>
+                        <button onclick="switchTab('products')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg text-xs flex items-center">
+                            <i class="fa-solid fa-arrow-right ml-2"></i> عودة للبيانات
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-white rounded-xl border shadow-sm p-6">
+                            <h3 class="text-sm font-bold text-gray-800 mb-4">إضافة تصنيف جديد</h3>
+                            <form onsubmit="addNewCategory(event)" class="space-y-3">
+                                <div>
+                                    <input type="text" id="new-category-input" required placeholder="مثال: مطبوعات ورقية ورول" class="w-full px-3 py-2 border rounded-lg text-xs outline-none">
+                                </div>
+                                <button type="submit" class="w-full py-2 bg-amber-500 text-white rounded-lg text-xs font-bold">إضافة التصنيف</button>
+                            </form>
+                        </div>
+
+                        <div class="bg-white rounded-xl border shadow-sm p-6">
+                            <h3 class="text-sm font-bold text-gray-800 mb-4">التصنيفات المتاحة حالياً</h3>
+                            <ul id="categories-list-ui" class="space-y-2 text-xs"></ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. المشاريع -->
+                <div id="tab-projects" class="tab-page hidden space-y-6">
+                    <div class="flex justify-between items-center bg-white p-6 rounded-xl border shadow-sm">
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-800"><i class="fa-solid fa-folder-open text-amber-500 ml-2"></i>  المشاريع</h2>
+                        </div>
+                        <button onclick="openProjectPage()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 px-5 rounded-lg text-xs shadow flex items-center">
+                            <i class="fa-solid fa-folder-plus ml-2"></i> إضافة مشروع جديد
+                        </button>
+                    </div>
+
+                    <div class="bg-white rounded-xl border shadow-sm p-4 overflow-x-auto">
+                        <div class="relative mb-4">
+                            <i class="fa-solid fa-magnifying-glass absolute right-3 top-3 text-gray-400"></i>
+                            <input id="search-projects-input" type="search" oninput="filterProjectsTable()" placeholder="ابحث بكود المشروع أو اسم المشروع أو اسم العميل..." class="w-full border rounded-lg py-2.5 pr-9 pl-3 text-sm outline-none focus:ring-2 focus:ring-amber-500">
+                        </div>
+                        <table class="w-full text-right text-xs">
+                            <thead class="bg-gray-50 border-b">
+                                <tr>
+                                    <th class="p-3">كود المشروع</th>
+                                    <th class="p-3">اسم العميل</th>
+                                    <th class="p-3">اسم المشروع / الموقع</th>
+                                    <th class="p-3">المهندس المسؤول</th>
+                                    <th class="p-3">رقم هاتف العميل</th>
+                                    <th class="p-3 text-center">الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="projects-table-body" class="divide-y"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="page-project-form" class="tab-page hidden space-y-6">
+    <div class="flex justify-between items-center bg-white p-6 rounded-xl border shadow-sm">
+        <h2 id="project-page-title" class="text-xl font-bold text-gray-800"><i class="fa-solid fa-folder-plus text-amber-500 ml-2"></i> إضافة مشروع جديد</h2>
+        <button onclick="switchTab('projects')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg text-xs flex items-center">
+            <i class="fa-solid fa-arrow-right ml-2"></i> إلغاء والعودة
+        </button>
+    </div>
+
+    <div class="bg-white rounded-xl border shadow-sm p-6 max-w-xl">
+        <form onsubmit="saveProject(event)" class="space-y-4">
+            <input type="hidden" id="edit-project-index">
+            
+            <div>
+                <label class="block text-xs font-bold text-gray-700 mb-1">اختر العميل</label>
+                <select id="proj-client" required class="w-full px-3 py-2 border rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-amber-500"></select>
+            </div>
+            
+            <div>
+                <label class="block text-xs font-bold text-gray-700 mb-1">اسم المشروع / الموقع</label>
+                <input type="text" id="proj-name" required placeholder="تعديل واجهة فرع الدقي" class="w-full px-3 py-2 border rounded-lg text-xs outline-none focus:ring-2 focus:ring-amber-500">
+            </div>
+
+            <div class="flex justify-end space-x-2 space-x-reverse pt-2">
+                <button type="button" onclick="switchTab('projects')" class="px-5 py-2.5 bg-gray-200 rounded-lg text-xs font-bold">إلغاء</button>
+                <button type="submit" class="px-7 py-2.5 bg-amber-500 text-white rounded-lg text-xs font-bold hover:bg-amber-600 shadow">حفظ المشروع</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+                <!-- 6. أوامر الشغل -->
+                <div id="tab-orders" class="tab-page hidden space-y-6">
+                    <div class="flex justify-between items-center bg-white p-6 rounded-xl border shadow-sm">
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-800"><i class="fa-solid fa-file-signature text-amber-500 ml-2"></i>  أوامر التشغيل </h2>
+                        </div>
+                        <button onclick="openOrderPage()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 px-5 rounded-lg text-xs shadow flex items-center">
+                            <i class="fa-solid fa-plus ml-2"></i> إضافة أمر شغل جديد
+                        </button>
+                    </div>
+
+                    <div class="bg-white rounded-xl border shadow-sm p-4 overflow-x-auto">
+                        <div class="relative mb-4">
+                            <i class="fa-solid fa-magnifying-glass absolute right-3 top-3 text-gray-400"></i>
+                            <input id="search-orders-input" type="search" oninput="filterOrdersTable()" placeholder="ابحث بكود الأمر أو اسم المشروع أو اسم العميل..." class="w-full border rounded-lg py-2.5 pr-9 pl-3 text-sm outline-none focus:ring-2 focus:ring-amber-500">
+                        </div>
+                        <table class="w-full text-right text-xs">
+                            <thead class="bg-gray-50 border-b">
+                                <tr>
+                                    <th class="p-2 border-l">الكود</th>
+                                    <th class="p-2 border-l">اسم العميل</th>
+                                    <th class="p-2 border-l">المشروع</th>
+                                    <th class="p-2 border-l"> المهندس المسئول</th>
+                                    <th class="p-2 border-l">تاريخ التسليم</th>
+                                    <th class="p-2 border-l">ملخص الأصناف والمقاسات</th>
+                                    <th class="p-2 border-l text-center">المعاينة/الصورة</th>
+                                    <th class="p-2 text-center">الإجراءات والطباعة</th>
+                                </tr>
+                            </thead>
+                            <tbody id="operations-table-body" class="divide-y"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+<div id="page-order-form" class="tab-page hidden space-y-6">
+    <div class="flex justify-between items-center bg-white p-6 rounded-xl border shadow-sm">
+        <h2 id="order-page-title" class="text-xl font-bold text-gray-800"><i class="fa-solid fa-file-signature text-amber-500 ml-2"></i> إضافة أمر شغل جديد</h2>
+        <button onclick="switchTab('orders')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg text-xs flex items-center">
+            <i class="fa-solid fa-arrow-right ml-2"></i> إلغاء والعودة
+        </button>
+    </div>
+
+    <div class="bg-white rounded-xl border shadow-sm p-6 max-w-4xl">
+        <form onsubmit="saveFullOrder(event)" class="space-y-5">
+            <input type="hidden" id="edit-order-index">
+            <input type="hidden" id="order-code-input"> <!-- مخفي ويتم توليده تلقائياً -->
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">اختر العميل</label>
+                    <select id="select-order-client" onchange="updateProjectsDropdown()" required class="w-full px-3 py-2 border rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-amber-500"></select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">المشروع التابع له</label>
+                    <select id="select-order-project" required class="w-full px-3 py-2 border rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-amber-500">
+                        <option value="">-- اختر العميل أولاً --</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-amber-800 mb-1">تاريخ التسليم المطلوب</label>
+                    <input type="date" id="order-delivery-date" required class="w-full px-3 py-2 border rounded-lg text-xs font-mono outline-none focus:ring-2 focus:ring-amber-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-emerald-800 mb-1">العربون / المبلغ المدفوع (ج.م)</label>
+                    <input type="number" id="order-paid-amount" step="any" placeholder="0.00" class="w-full px-3 py-2 border rounded-lg text-xs font-mono font-bold bg-emerald-50/50 outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+            </div>
+                            <div class="border rounded-lg p-4 bg-gray-50 space-y-3">
+                                <div class="flex justify-between items-center">
+                                    <label class="block text-xs font-bold text-gray-800"><i class="fa-solid fa-list-check text-amber-500 ml-1"></i> الأصناف والمقاسات والكميات:</label>
+                                    <button type="button" onclick="addProductRow()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-3 py-1 rounded text-xs">
+                                        <i class="fa-solid fa-plus ml-1"></i> إضافة صنف آخر
+                                    </button>
+                                </div>
+
+                                <div id="products-dynamic-container" class="space-y-3"></div>
+                            </div>
+
+                            <div class="border-2 border-dashed border-amber-300 bg-amber-50/50 rounded-lg p-4 text-center">
+                                <label class="block text-xs font-bold text-amber-900 mb-1"><i class="fa-solid fa-paste ml-1"></i> مرفق صُورة التصميم أو الموقع (يدعم اللصق المباشر Ctrl + V):</label>
+                                <p class="text-[11px] text-gray-500 mb-3">انسخ الصورة واضغط Ctrl + V في أي مكان هنا، أو اختار الملف يدويًا</p>
+                                <input type="file" id="order-image-input" accept="image/*" class="text-xs">
+                                
+                                <div id="pasted-image-preview" class="hidden mt-3">
+                                    <p class="text-xs font-bold text-emerald-600 mb-1">تم التقاط الصورة بنجاح:</p>
+                                    <img id="pasted-img-tag" class="max-h-40 mx-auto rounded border shadow-sm">
+                                </div>
+                            </div>
+
+                            <div class="flex justify-end space-x-2 space-x-reverse pt-2">
+                                <button type="button" onclick="switchTab('orders')" class="px-5 py-2.5 bg-gray-200 rounded-lg text-xs font-bold">إلغاء</button>
+                                <button type="submit" class="px-8 py-2.5 bg-amber-500 text-white rounded-lg text-xs font-bold hover:bg-amber-600 shadow">حفظ أمر الشغل</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 7. إدارة المبيعات وعروض الأسعار -->
+                <div id="tab-sales" class="tab-page hidden space-y-6">
+                    <div class="flex justify-between items-center bg-white p-4 rounded-xl border shadow-sm">
+                        <div>
+                            <h2 class="text-base font-bold text-gray-800 flex items-center gap-2">
+                                <i class="fa-solid fa-chart-line text-amber-500"></i> إدارة المبيعات وعروض الأسعار
+                            </h2>
+                        </div>
+                        <button type="button" onclick="openQuotationBuilder()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 px-5 rounded-lg text-xs shadow flex items-center gap-2 transition-all">
+                            <i class="fa-solid fa-calculator"></i> إنشاء عرض سعر جديد
+                        </button>
+                    </div>
+
+                    <div id="sales-ledger-card" class="bg-white rounded-xl border shadow-sm overflow-hidden">
+                        <div class="p-4 border-b bg-gray-50 flex justify-between items-center">
+                            <h3 class="text-xs font-bold text-gray-700"><i class="fa-solid fa-list-check text-amber-500 ml-1"></i> سجل عروض الأسعار الصادرة</h3>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs text-right">
+                                <thead class="bg-gray-100 text-gray-700 font-bold border-b">
+                                   <thead>
+    <tr class="bg-gray-100 text-gray-700 text-xs font-bold border-b text-center">
+        <th class="p-3">كود العرض</th>
+        <th class="p-3">العميل</th>
+        <th class="p-3">التاريخ</th>
+        <th class="p-3">الإجمالي</th>
+        <th class="p-3">المعاينة</th>
+        <th class="p-3">الإجراءات</th>
+    </tr>
+</thead>
+                                </thead>
+                                <tbody id="quotations-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- صفحة حاسبة تسعير وعرض أسعار جديد -->
+                <div id="page-quotation-form" class="tab-page hidden space-y-6">
+                    <div class="flex justify-between items-center bg-white p-6 rounded-xl border shadow-sm">
+                        <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                            <i class="fa-solid fa-calculator text-amber-500"></i> حاسبة تسعير وعرض أسعار جديد
+                        </h2>
+                        <button type="button" onclick="closeQuotationBuilder()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg text-xs flex items-center gap-1">
+                            <i class="fa-solid fa-arrow-right"></i> إلغاء والعودة للمبيعات
+                        </button>
+                    </div>
+
+                    <div class="bg-white rounded-xl border shadow-sm p-6 space-y-5 max-w-5xl mx-auto">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1">العميل</label>
+                                <select id="quote-select-client" class="w-full px-3 py-2 border rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-amber-500"></select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1">تاريخ عرض السعر</label>
+                                <input type="date" id="quote-date" class="w-full px-3 py-2 border rounded-lg text-xs outline-none focus:ring-2 focus:ring-amber-500">
+                            </div>
+                        </div>
+
+                        <div class="border rounded-lg p-4 bg-gray-50 space-y-3">
+                            <div class="flex justify-between items-center">
+                                <label class="text-xs font-bold text-gray-800">بنود وتسعير المنتجات والخامات:</label>
+                                <button type="button" onclick="addQuoteItemRow()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-3 py-1 rounded text-xs shadow flex items-center gap-1">
+                                    <i class="fa-solid fa-plus"></i> إضافة بند آخر
+                                </button>
+                            </div>
+                            <div id="quote-items-container" class="space-y-3"></div>
+                        </div>
+
+                        <div class="flex justify-between items-center bg-neutral-900 text-white p-4 rounded-lg shadow-sm">
+                            <span class="font-bold text-xs">إجمالي عرض السعر المحسوب تلقائياً:</span>
+                            <span id="quote-calculated-total" class="text-xl font-black text-amber-400 font-mono">0.00 ج.م</span>
+                        </div>
+
+                        <div class="flex justify-end space-x-2 space-x-reverse pt-2 border-t">
+                            <button type="button" onclick="closeQuotationBuilder()" class="px-5 py-2.5 bg-gray-200 text-gray-700 rounded-lg text-xs font-bold hover:bg-gray-300">إلغاء</button>
+                            <button type="button" onclick="saveAndPreviewQuotation()" class="px-7 py-2.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 shadow flex items-center gap-2">
+                                <i class="fa-solid fa-print"></i> حفظ ومعاينة عرض السعر
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- المهملات -->
+                <div id="tab-trash-bin" class="tab-page hidden space-y-6">
+                    <div class="bg-white p-6 rounded-xl border shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-800"><i class="fa-solid fa-trash-can text-red-500 ml-2"></i> المهملات</h2>
+                            <p class="text-xs text-gray-500 mt-2">سجل العناصر المحذوفة وأسباب الحذف ومن قام به.</p>
+                        </div>
+                        <button type="button" onclick="emptyTrashBin()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-5 rounded-lg text-xs shadow flex items-center gap-2 transition-all">
+                            <i class="fa-solid fa-trash-can"></i> تفريغ المهملات نهائياً
+                        </button>
+                    </div>
+                    <div class="bg-white rounded-xl border shadow-sm p-4 overflow-x-auto">
+                        <table class="w-full text-right text-xs">
+                            <thead class="bg-gray-50 border-b"><tr><th class="p-3">تاريخ الحذف</th><th class="p-3">النوع</th><th class="p-3">الكود</th><th class="p-3">العميل / الاسم</th><th class="p-3">المشروع</th><th class="p-3">سبب الحذف</th><th class="p-3">بواسطة</th></tr></thead>
+                            <tbody id="trash-bin-tbody" class="divide-y"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 8. إدارة الحسابات والمالية الشاملة للشركة -->
+                <div id="tab-finance" class="tab-page hidden space-y-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-xl border shadow-sm">
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                                <i class="fa-solid fa-calculator text-amber-500"></i> المركز المالي وحسابات الشركة
+                            </h2>
+                            <p class="text-xs text-gray-500 mt-1">متابعة الخزينة، الأرباح، المصروفات، ومستحقات العملاء المتبقية</p>
+                        </div>
+                        <button type="button" onclick="openFinanceTransactionForm()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-5 rounded-lg text-xs shadow flex items-center gap-2 transition-all">
+                            <i class="fa-solid fa-plus"></i> الحركة المالية
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="bg-white p-4 rounded-xl border border-emerald-200 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-xs text-gray-500 font-bold mb-1">إجمالي المقبوضات (+)</p>
+                                <h3 id="finance-total-in" class="text-lg font-black text-emerald-600 font-mono">0.00 ج.م</h3>
+                            </div>
+                            <div class="p-3 bg-emerald-50 text-emerald-600 rounded-lg"><i class="fa-solid fa-circle-arrow-down text-xl"></i></div>
+                        </div>
+
+                        <div class="bg-white p-4 rounded-xl border border-red-200 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-xs text-gray-500 font-bold mb-1">إجمالي المصروفات (-)</p>
+                                <h3 id="finance-total-out" class="text-lg font-black text-red-600 font-mono">0.00 ج.م</h3>
+                            </div>
+                            <div class="p-3 bg-red-50 text-red-600 rounded-lg"><i class="fa-solid fa-circle-arrow-up text-xl"></i></div>
+                        </div>
+
+                        <div class="bg-white p-4 rounded-xl border border-amber-200 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-xs text-gray-500 font-bold mb-1">صافي الخزينة الحالية</p>
+                                <h3 id="finance-net-balance" class="text-lg font-black text-amber-600 font-mono">0.00 ج.م</h3>
+                            </div>
+                            <div class="p-3 bg-amber-50 text-amber-600 rounded-lg"><i class="fa-solid fa-wallet text-xl"></i></div>
+                        </div>
+
+                        <div class="bg-white p-4 rounded-xl border border-blue-200 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-xs text-gray-500 font-bold mb-1">مستحقات عند العملاء</p>
+                                <h3 id="finance-total-dues" class="text-lg font-black text-blue-600 font-mono">0.00 ج.م</h3>
+                            </div>
+                            <div class="p-3 bg-blue-50 text-blue-600 rounded-lg"><i class="fa-solid fa-hand-holding-dollar text-xl"></i></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+                        <div class="p-4 border-b bg-gray-50 flex justify-between items-center">
+                            <h3 class="text-xs font-bold text-gray-700 flex items-center gap-1">
+                                <i class="fa-solid fa-list-ul text-amber-500"></i> سجل حركة الخزينة والمصروفات
+                            </h3>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-right text-xs">
+                                <thead class="bg-gray-100 text-gray-700 font-bold border-b">
+                                    <tr>
+                                        <th class="p-3 font-mono">التاريخ</th>
+                                        <th class="p-3">نوع الحركة</th>
+                                        <th class="p-3">التصنيف</th>
+                                        <th class="p-3">البيان / الوصف</th>
+                                        <th class="p-3 font-mono">المبلغ</th>
+                                        <th class="p-3">طريقة الدفع</th>
+                                        <th class="p-3">المسؤول</th>
+                                        <th class="p-3 text-center">حذف</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="finance-table-body" class="divide-y"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- صفحة تسجيل الحركة المالية (نموذج منفصل) -->
+                <div id="page-finance-form" class="tab-page hidden space-y-6">
+                    <div class="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-neutral-200">
+                        <h2 class="text-lg font-black text-neutral-800 flex items-center gap-2">
+                            <i class="fa-solid fa-money-bill-transfer text-emerald-600"></i>
+                            <span>الحركة المالية</span>
+                        </h2>
+                        <button type="button" onclick="closeFinanceTransactionForm()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-lg transition-all flex items-center gap-1">
+                            <i class="fa-solid fa-arrow-right"></i> العودة للمالية
+                        </button>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-neutral-200 max-w-2xl mx-auto">
+                        <form onsubmit="saveTransaction(event)" class="space-y-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1">نوع الحركة المالية</label>
+                                    <select id="trans-type" class="w-full p-2.5 border rounded-lg text-xs font-bold bg-white outline-none focus:ring-2 focus:ring-amber-500">
+                                        <option value="in">وارد / تحصيل حساب (+)</option>
+                                        <option value="out">منصرف / مصروفات (-)</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1">التصنيف المالي</label>
+                                    <select id="trans-category" class="w-full p-2.5 border rounded-lg text-xs font-bold bg-white outline-none focus:ring-2 focus:ring-amber-500">
+                                        <option value="مبيعات وعملاء">دفعة من عميل / مبيعات</option>
+                                        <option value="خامات ومشتريات">مشتريات خامات ومستلزمات</option>
+                                        <option value="مصروفات تشغيل">مصروفات تشغيل وصيانة</option>
+                                        <option value="أجور ومرتبات">أجور وسلف موظفين</option>
+                                        <option value="إيجار وفواتير">إيجار / كهرباء / فواتير</option>
+                                        <option value="مصروفات نثرية">مصروفات إدارية ونثرية</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- قسم المشاريع وأوامر الشغل المحدث -->
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 p-4 bg-gray-50 border rounded-lg">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1">المشروع (بالكود / الاسم)</label>
+                                    <select id="trans-project" onchange="updateFinanceProjectsDropdown()" class="w-full p-2.5 border rounded-lg text-xs bg-white outline-none">
+                                        <option value="">-- اختر المشروع --</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1">أوامر الشغل الخاصة بالمشروع</label>
+                                    <select id="trans-order" onchange="updateFinanceOrderAccount()" class="w-full p-2.5 border rounded-lg text-xs bg-white outline-none font-mono">
+                                        <option value="">-- اختر أمر الشغل --</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1">حساب المشروع كامل</label>
+                                    <input type="text" id="trans-project-total-ledger" readonly value="0.00 ج.م" class="w-full p-2.5 border rounded-lg text-xs font-mono font-bold bg-blue-50 text-blue-700 text-center">
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1">المبلغ (بالجنيه)</label>
+                                    <input type="number" id="trans-amount" step="any" min="0.01" placeholder="0.00" required class="w-full p-2.5 border rounded-lg text-xs font-mono font-bold outline-none focus:ring-2 focus:ring-amber-500">
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1">طريقة الدفع / التحويل</label>
+                                    <select id="trans-method" class="w-full p-2.5 border rounded-lg text-xs font-bold bg-white outline-none focus:ring-2 focus:ring-amber-500">
+                                        <option value="نقداً (كاش)">نقداً (كاش الخزينة)</option>
+                                        <option value="تحويل بنكي">تحويل بنكي</option>
+                                        <option value="محفظة إلكترونية">فودافون كاش / محفظة</option>
+                                        <option value="شيك">شيك بنكي</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1">البيان / الوصف التفصيلي</label>
+                                <input type="text" id="trans-desc" placeholder="مثال: دفعة مقدمة - مشروع الدقي..." required class="w-full p-2.5 border rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-amber-500">
+                            </div>
+
+                            <div class="flex gap-3 pt-4 border-t">
+                                <button type="button" onclick="closeFinanceTransactionForm()" class="px-6 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold text-xs rounded-lg transition-all">
+                                    إلغاء
+                                </button>
+                                <button type="submit" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition-all shadow-md flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-check"></i> حفظ الحركة المالية
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- مودال معاينة وتصدير عرض السعر -->
+    <div id="modal-quotation-preview" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center p-4 z-50 overflow-y-auto">
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-3xl border-t-4 border-amber-500 my-8 space-y-6">
+            
+            <div id="quotation-export-card" class="p-8 bg-white text-right font-sans space-y-6">
+                <div class="flex justify-between items-center border-b-2 border-amber-500 pb-4">
+                    <div>
+                        <h1 class="text-3xl font-black text-amber-600">LAMSA</h1>
+                        <p class="text-xs text-gray-600 font-bold">شركة لمسة للدعاية والإعلان والطباعة</p>
+                    </div>
+                    <div class="text-center">
+                        <span class="bg-neutral-900 text-amber-400 px-6 py-2 rounded font-bold text-base">عرض سعر رسمي</span>
+                    </div>
+                    <div class="text-left font-mono text-xs">
+                        <p class="text-amber-600 font-bold" id="preview-quote-id">Q-1</p>
+                        <p id="preview-quote-date">2026-10-05</p>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 p-3 rounded border text-xs flex justify-between items-center font-bold">
+                    <span>مقدم إلى السيد / الشركة: <strong id="preview-quote-client" class="text-amber-700">—</strong></span>
+                </div>
+
+                <table class="w-full text-xs border-collapse border border-gray-300">
+                    <thead class="bg-gray-100 text-gray-800 font-bold">
+                        <tr>
+                            <th class="p-2 border border-gray-300 text-center">#</th>
+                            <th class="p-2 border border-gray-300 text-right">المنتج / الخامة</th>
+                            <th class="p-2 border border-gray-300 text-center">المقاس (سم)</th>
+                            <th class="p-2 border border-gray-300 text-center">العدد</th>
+                            <th class="p-2 border border-gray-300 text-center">المساحة/الكمية</th>
+                            <th class="p-2 border border-gray-300 text-center">سعر الوحدة</th>
+                            <th class="p-2 border border-gray-300 text-left">الإجمالي</th>
+                        </tr>
+                    </thead>
+                    <tbody id="preview-quote-items-tbody"></tbody>
+                </table>
+
+                <div class="flex justify-between items-center p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                    <span class="text-xs font-bold text-gray-700">إجمالي عرض السعر المطلوب:</span>
+                    <span id="preview-quote-total" class="text-xl font-black text-blue-600 font-mono">0.00 ج.م</span>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center pt-4 border-t">
+                <button type="button" onclick="closeQuotationModal()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-xs font-bold hover:bg-gray-300">إغلاق</button>
+                <div class="flex gap-2">
+                    <button type="button" onclick="downloadQuoteAsPDF()" class="px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 shadow flex items-center gap-1.5">
+                        <i class="fa-solid fa-file-pdf"></i> تحميل PDF
+                    </button>
+                    <button type="button" onclick="printQuotationDocument()" class="px-5 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 shadow flex items-center gap-1.5">
+                        <i class="fa-solid fa-print"></i> طباعة عرض السعر
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة تأكيد سبب حذف أمر الشغل -->
+    <div id="delete-order-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-xl border p-6 max-w-md w-full space-y-4">
+            <h3 class="text-base font-bold text-red-600 flex items-center gap-2">
+                <i class="fa-solid fa-triangle-exclamation text-amber-500"></i> تأكيد حذف أمر الشغل
+            </h3>
+            <p class="text-xs text-gray-600">
+                ممنوع حذف أمر الشغل بدون توضيح السبب.
+            </p>
+            <div>
+                <label class="block text-xs font-bold text-gray-700 mb-1">سبب الحذف (إجباري):</label>
+                <textarea id="delete-order-reason" rows="3" placeholder="أدخل سبب الحذف بالتفصيل..." class="w-full p-2.5 border rounded-lg text-xs outline-none focus:ring-2 focus:ring-red-500"></textarea>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="closeDeleteOrderModal()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-xs font-bold hover:bg-gray-300">إلغاء</button>
+                <button type="button" onclick="confirmDeleteOrderWithReason()" class="px-5 py-2 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 shadow">تأكيد الحذف</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- منطقة أصل الطباعة الشامل المستقلة -->
+    <div id="printable-area" class="hidden"></div>
+
+    <!-- ربط ملف الجافاسكريبت المكتمل -->
+    <script src="script.js"></script>
+</body>
+</html>
