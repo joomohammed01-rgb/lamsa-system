@@ -62,9 +62,16 @@ function getCurrentUserName() {
 }
 
 function handleLogin(event) {
-    event.preventDefault();
-    const phone = document.getElementById('username').value.trim();
-    const pass = document.getElementById('password').value.trim();
+    if (event) event.preventDefault();
+    
+    // سحب أحدث بيانات الموظفين المسجلة في الذاكرة المحلية
+    usersDatabase = loadData('usersDatabase', {});
+
+    const phoneInput = document.getElementById('username');
+    const passInput = document.getElementById('password');
+
+    const phone = phoneInput ? phoneInput.value.trim() : '';
+    const pass = passInput ? passInput.value.trim() : '';
 
     const user = usersDatabase[phone];
     if (!user || user.pass !== pass) {
@@ -72,6 +79,8 @@ function handleLogin(event) {
         return;
     }
 
+    currentUserPhone = phone;
+    currentUserRole = user.role || 'engineer';
     localStorage.setItem('currentUserPhone', phone);
 
     const nameEl = document.getElementById('display-username');
@@ -89,29 +98,6 @@ function handleLogin(event) {
     applyUserPermissions();
     switchTab('home');
 }
-
-function hasPerm(permKey) {
-    if (currentUserRole === 'admin') return true;
-    const u = usersDatabase[currentUserPhone];
-    return u && u.perms && u.perms[permKey];
-}
-
-function switchTab(pageId) {
-    // 1. إخفاء كل صفحات الـ tab والـ page الموجودة في النظام
-    const allPages = document.querySelectorAll('.tab-page');
-    allPages.forEach(p => p.classList.add('hidden'));
-
-    // 2. البحث عن الصفحة المستهدفة سواء كانت تبدأ بـ tab- أو page- وعرضها فوراً
-    let target = document.getElementById('tab-' + pageId) || 
-                 document.getElementById('page-' + pageId) || 
-                 document.getElementById(pageId);
-
-    if (target) {
-        target.classList.remove('hidden');
-    } else {
-        console.warn('الصفحة غير موجودة:', pageId);
-    }
-
     // 3. تحديث القائمة الجانبية (Sidebar Active State)
     const navs = ['home', 'users', 'clients', 'products', 'inventory', 'projects', 'orders', 'sales', 'finance', 'client-ledger', 'trash-bin'];
     navs.forEach(n => {
