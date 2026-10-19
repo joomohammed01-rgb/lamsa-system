@@ -40,29 +40,30 @@ async function saveData(key, val) {
     console.error("فشل الاتصال بـ Supabase أثناء الحفظ:", err);
   }
 }
-let currentUserRole = 'engineer';
-let currentUserPhone = '';
+// دالة تحميل كل البيانات من Supabase عند فتح الموقع
+async function initApp() {
+  projectAutoCounter = await loadData('projectAutoCounter', 1);
+  orderAutoCounter = await loadData('orderAutoCounter', 1);
+  quoteAutoCounter = await loadData('quoteAutoCounter', 1);
+  usersDatabase = await loadData('usersDatabase', {});
+  clientsList = await loadData('clientsList', []);
+  categoriesList = await loadData('categoriesList', []);
+  productsList = await loadData('productsList', []);
+  inventoryList = await loadData('inventoryList', []);
+  projectsList = await loadData('projectsList', []);
+  allOrdersList = await loadData('allOrdersList', []);
+  quotationsList = await loadData('quotationsList', []);
+  financeTransactions = await loadData('financeTransactions', []);
+  trashBinList = await loadData('trashBinList', []);
+  payrollList = await loadData('payrollList', []);
 
-let projectAutoCounter = loadData('projectAutoCounter', 1);
-let orderAutoCounter = loadData('orderAutoCounter', 1);
-let quoteAutoCounter = loadData('quoteAutoCounter', 1);
-let usersDatabase = loadData('usersDatabase', {});
-let clientsList = loadData('clientsList', []);
-let categoriesList = loadData('categoriesList', []);
-let productsList = loadData('productsList', []);
-let inventoryList = loadData('inventoryList', []);
-let projectsList = loadData('projectsList', []);
-let fullOrdersList = loadData('fullOrdersList', []);
-let quotationsList = loadData('quotationsList', []);
-let financeTransactions = loadData('financeTransactions', []);
+  // تحديث واجهة المستخدم فور الانتهاء من التحميل
+  if (typeof updateHeaderUserInfo === "function") updateHeaderUserInfo();
+  if (typeof renderAll === "function") renderAll();
+}
 
-let trashBinList = loadData('trashBinList', []);
-let payrollList = loadData('payrollList', []);
-
-let activeQuoteData = null;
-let pastedImageData = null;
-let editTransactionIndex = null;
-let targetOrderIndexToDelete = null;
+// تشغيل التحميل بمجرد فتح الصفحة
+document.addEventListener("DOMContentLoaded", initApp);
 
 // --- إدارة تسجيل الدخول والصفحات ---
 function updateHeaderUserInfo() {
