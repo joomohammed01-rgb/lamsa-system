@@ -95,7 +95,29 @@ async function syncOldDataToCloud() {
 }
 // تشغيل التحميل بمجرد فتح الصفحة
 document.addEventListener("DOMContentLoaded", initApp);
+async function initApp() {
+  projectAutoCounter = await loadData('projectAutoCounter', 1);
+  orderAutoCounter = await loadData('orderAutoCounter', 1);
+  quoteAutoCounter = await loadData('quoteAutoCounter', 1);
+  usersDatabase = await loadData('usersDatabase', {});
+  clientsList = await loadData('clientsList', []);
+  categoriesList = await loadData('categoriesList', []);
+  productsList = await loadData('productsList', []);
+  inventoryList = await loadData('inventoryList', []);
+  projectsList = await loadData('projectsList', []);
+  allOrdersList = await loadData('allOrdersList', []);
+  quotationsList = await loadData('quotationsList', []);
+  financeTransactions = await loadData('financeTransactions', []);
+  trashBinList = await loadData('trashBinList', []);
+  payrollList = await loadData('payrollList', []);
 
+  // رفع البيانات القديمة تلقائياً للسيرفر
+  await syncOldDataToCloud();
+
+  // تحديث واجهة المستخدم فور الانتهاء
+  if (typeof updateHeaderUserInfo === "function") updateHeaderUserInfo();
+  if (typeof renderAll === "function") renderAll();
+}
 // --- إدارة تسجيل الدخول والصفحات ---
 function updateHeaderUserInfo() {
     const currentPhone = localStorage.getItem('currentUserPhone');
