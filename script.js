@@ -942,14 +942,23 @@ function filterProjectsTable() {
     });
 }
 
-// --- إدارة أوامر الشغل ---
+// دالة فتح صفحة أمر الشغل الجديد
 function openOrderPage() {
     document.getElementById('edit-order-index').value = '';
     document.getElementById('order-delivery-date').value = new Date().toISOString().split('T')[0];
     
-    let currentCounter = parseInt(localStorage.getItem('lamsa_orderAutoCounter')) || (fullOrdersList.length + 1);
+    // حساب أقصى رقم كود موجود حالياً لضمان التسلسل الصحيح (1، 2، 3...)
+    let maxNum = 0;
+    fullOrdersList.forEach(o => {
+        if (o.code) {
+            let num = parseInt(o.code.replace(/[^\d]/g, '')) || 0;
+            if (num > maxNum) maxNum = num;
+        }
+    });
+    
+    let nextCounter = maxNum + 1;
     const codeInput = document.getElementById('order-code-input');
-    if (codeInput) codeInput.value = `ORD - ${currentCounter}`;
+    if (codeInput) codeInput.value = `ORD - ${nextCounter}`;
 
     document.getElementById('select-order-client').value = '';
     
@@ -974,55 +983,111 @@ function openOrderPage() {
     setupPasteEventListener();
 }
 
-function addProductRow() {
-    const container = document.getElementById('products-dynamic-container');
-    if (!container) return;
+// دالة حفظ أمر الشغل
+function saveFullOrder(e) {
+    if (e) e.preventDefault();
     
-    const rowId = Date.now();
-    const newRow = document.createElement('div');
-    newRow.className = 'product-row grid grid-cols-1 md:grid-cols-12 gap-3 p-3 bg-gray-50 rounded-lg border items-end mt-2';
-    newRow.id = 'ord-prod-row-' + rowId;
-    newRow.innerHTML = `
-        <div class="md:col-span-3">
-            <label class="block text-[11px] font-bold text-gray-700 mb-1">المنتج</label>
-            <select onchange="calculateRowUnitSpecs('${rowId}')" class="product-select w-full px-2 py-1.5 border rounded text-xs bg-white outline-none" required></select>
-        </div>
-        <div class="md:col-span-2">
-            <label class="block text-[11px] font-bold text-gray-700 mb-1">العرض (سم)</label>
-            <input type="number" oninput="calculateRowUnitSpecs('${rowId}')" placeholder="العرض" class="product-width w-full px-2 py-1.5 border rounded text-xs outline-none">
-        </div>
-        <div class="md:col-span-2">
-            <label class="block text-[11px] font-bold text-gray-700 mb-1">الارتفاع (سم)</label>
-            <input type="number" oninput="calculateRowUnitSpecs('${rowId}')" placeholder="الارتفاع" class="product-height w-full px-2 py-1.5 border rounded text-xs outline-none">
-        </div>
-        <div class="md:col-span-1">
-            <label class="block text-[11px] font-bold text-amber-800 mb-1">العدد/الدقائق</label>
-            <input type="number" value="1" min="1" oninput="calculateRowUnitSpecs('${rowId}')" placeholder="1" class="product-qty w-full px-2 py-1.5 border rounded text-xs font-bold outline-none">
-        </div>
-        <div class="md:col-span-2">
-            <label class="block text-[11px] font-bold text-blue-700 mb-1">وحدة القياس / الناتِج</label>
-            <input type="text" id="unit-calc-result-${rowId}" readonly value="—" class="w-full px-2 py-1.5 border rounded text-xs font-black bg-blue-50 text-blue-800 outline-none">
-        </div>
-        <div class="md:col-span-1">
-            <label class="block text-[11px] font-bold text-gray-700 mb-1">الملاحظات</label>
-            <input type="text" placeholder="ملاحظات..." class="product-notes w-full px-2 py-1.5 border rounded text-xs outline-none">
-        </div>
-        <div class="md:col-span-1 text-center">
-            <button type="button" onclick="document.getElementById('ord-prod-row-${rowId}').remove()" class="bg-red-100 text-red-600 font-bold p-1.5 rounded text-xs w-full"><i class="fa-solid fa-trash"></i></button>
-        </div>
-    `;
-    container.appendChild(newRow);
-    populateSingleProductDropdown(newRow.querySelector('.product-select'));
-}
-
-function populateSingleProductDropdown(selectEl) {
-    if (!selectEl) return;
-    selectEl.innerHTML = '<option value="">-- اختر المنتج --</option>';
-    if (typeof productsList !== 'undefined') {
-        productsList.forEach(p => {
-            selectEl.innerHTML += `<option value="${p.name}">${p.name}</option>`;
-        });
+    const clientName = document.getElementById('select-order-client')?.value;
+    const projectName = document.getElementById('select-order-project')?.value;
+    
+    if (!clientName) {
+        alert('برجاء اختيار العميل');
+        return;
     }
+    if (!projectName) {
+        alert('برجاء اختيار المشروع التابع له');
+        return;
+    }
+
+    const idx = document.getElementById('edit-order-index')?.value;
+    const deliveryDate = document.getElementById('order-delivery-date')?.value || new Date().toISOString().split('T')[0];
+    const paidAmount = parseFloat(document.getElementById('order-paid-amount')?.value) || 0;
+
+    const rows = document.querySelectorAll('.product-row');
+    let productsSummaryText = '';
+    let grandTotal = 0;
+
+    rows.forEach(row => {
+        const prodName = row.querySelector('.product-select')?.value;
+        const width = parseFloat(row.querySelector('.product-width')?.value) || 0;
+        const height = parseFloat(row.querySelector('.product-height')?.value) || 0;
+        const qty = parseFloat(row.querySelector('.product-qty')?.value) || 1;
+        const notes = row.querySelector('.product-notes')?.value || '';
+
+        if (prodName) {
+            const prodObj = productsList.find(p => p.name === prodName);
+            const unitPrice = prodObj ? (parseFloat(prodObj.price) || 0) : 0;
+            
+            let itemTotal = 0;
+            if (prodObj && prodObj.priceType === 'unit') {
+                itemTotal = qty * unitPrice;
+            } else if (prodObj && prodObj.priceType === 'minute') {
+                itemTotal = qty * unitPrice;
+            } else if (prodObj && prodObj.priceType === 'acrylic_facade') {
+                itemTotal = (width / 50) * (height / 100) * qty * unitPrice;
+            } else {
+                itemTotal = ((width * height) / 10000) * qty * unitPrice;
+            }
+
+            grandTotal += itemTotal;
+            productsSummaryText += `- ${prodName} (مقاس: ${width}×${height} سم، عدد: ${qty}) [إجمالي: ${itemTotal} ج.م] ${notes ? ' - ملاحظات: ' + notes : ''}\n`;
+        }
+    });
+
+    let orderCode = document.getElementById('order-code-input')?.value;
+
+    // في حالة إضافة أمر شغل جديد (تأكيد حساب الكود التلقائي)
+    if (idx === undefined || idx === '') {
+        let maxNum = 0;
+        fullOrdersList.forEach(o => {
+            if (o.code) {
+                let num = parseInt(o.code.replace(/[^\d]/g, '')) || 0;
+                if (num > maxNum) maxNum = num;
+            }
+        });
+        orderCode = `ORD - ${maxNum + 1}`;
+    }
+
+    const orderData = {
+        code: orderCode,
+        client: clientName,
+        project: projectName,
+        engineer: getCurrentUserName(),
+        contractDate: new Date().toISOString().split('T')[0],
+        deliveryDate: deliveryDate,
+        paidAmount: paidAmount,
+        totalAmount: grandTotal,
+        products: productsSummaryText || 'بدون تفاصيل',
+        image: pastedImageData || ''
+    };
+
+    if (idx !== undefined && idx !== '' && fullOrdersList[idx]) {
+        fullOrdersList[idx] = orderData;
+    } else {
+        fullOrdersList.unshift(orderData);
+    }
+
+    saveData('fullOrdersList', fullOrdersList);
+    
+    if (paidAmount > 0 && (idx === undefined || idx === '')) {
+        const transObj = {
+            date: new Date().toISOString().split('T')[0],
+            type: 'in',
+            category: 'مبيعات وعملاء',
+            desc: `دفعة مقدمة / عربون أمر شغل (${orderCode})`,
+            amount: paidAmount,
+            method: 'نقداً (كاش)',
+            user: getCurrentUserName(),
+            client: clientName,
+            project: projectName,
+            orderCode: orderCode
+        };
+        financeTransactions.unshift(transObj);
+        saveData('financeTransactions', financeTransactions);
+    }
+
+    if (typeof renderAllTables === 'function') renderAllTables();
+    if (typeof switchTab === 'function') switchTab('orders');
 }
 
 function saveFullOrder(e) {
