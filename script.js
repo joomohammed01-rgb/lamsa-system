@@ -12,7 +12,7 @@ let currentUserRole = 'engineer';
 let currentUserPhone = '';
 
 let projectAutoCounter = loadData('projectAutoCounter', 1);
-let orderAutoCounter = parseInt(localStorage.getItem('lamsa_orderAutoCounter')) || 1;let quoteAutoCounter = loadData('quoteAutoCounter', 1);
+let orderAutoCounter = parseInt(localStorage.getItem('lamsa_orderAutoCounter')) || 1;
 let quoteAutoCounter = loadData('quoteAutoCounter', 1);
 let usersDatabase = loadData('usersDatabase', {});
 let clientsList = loadData('clientsList', []);
@@ -47,10 +47,14 @@ function updateHeaderUserInfo() {
 
 function handleLogout() {
     localStorage.removeItem('currentUserPhone');
-    document.getElementById('dashboard-section').classList.add('hidden');
-    document.getElementById('login-section').classList.remove('hidden');
-    document.getElementById('username').value = '';
-    document.getElementById('password').value = '';
+    const loginSec = document.getElementById('login-section');
+    const dashSec = document.getElementById('dashboard-section');
+    if (loginSec) loginSec.classList.remove('hidden');
+    if (dashSec) dashSec.classList.add('hidden');
+    const phoneInput = document.getElementById('username');
+    const passInput = document.getElementById('password');
+    if (phoneInput) phoneInput.value = '';
+    if (passInput) passInput.value = '';
 }
 
 function getCurrentUserName() {
@@ -62,29 +66,64 @@ function getCurrentUserName() {
 }
 
 function handleLogin(event) {
-    event.preventDefault();
-    const phone = document.getElementById('username').value.trim();
-    const pass = document.getElementById('password').value.trim();
+    if (event) event.preventDefault();
+    
+    usersDatabase = loadData('usersDatabase', usersDatabase);
 
-    const user = usersDatabase[phone];
-    if (!user || user.pass !== pass) {
-        alert('خطأ: بيانات الدخول غير صحيحة!');
+    const phoneInput = document.getElementById('username');
+    const passInput = document.getElementById('password');
+
+    const phone = phoneInput ? phoneInput.value.trim() : '';
+    const pass = passInput ? passInput.value.trim() : '';
+
+    // حساب المدير الأساسي السري في حالة عدم وجود مستخدمين مسجلين
+    if (phone === '01063292810' && pass === '252503') {
+        currentUserPhone = phone;
+        currentUserRole = 'admin';
+        localStorage.setItem('currentUserPhone', phone);
+        
+        if (!usersDatabase[phone]) {
+            usersDatabase[phone] = { name: 'م/ يوسف محمد', role: 'admin', pass: '252503', title: 'مدير النظام' };
+            saveData('usersDatabase', usersDatabase);
+        }
+
+        document.getElementById('login-section')?.classList.add('hidden');
+        document.getElementById('dashboard-section')?.classList.remove('hidden');
+        
+        renderAllTables();
+        populateOrderDropdowns();
+        populateCategoriesDropdown();
+        applyUserPermissions();
+        switchTab('home');
         return;
     }
 
+    if (!usersDatabase[phone]) {
+        alert('خطأ: رقم الهاتف غير مسجل بالنظام!');
+        return;
+    }
+
+    const user = usersDatabase[phone];
+    if (user.pass !== pass) {
+        alert('خطأ: كلمة المرور غير صحيحة!');
+        return;
+    }
+
+    currentUserPhone = phone;
+    currentUserRole = user.role || 'engineer';
+    localStorage.setItem('currentUserPhone', phone);
 
     const nameEl = document.getElementById('display-username');
     const roleEl = document.getElementById('display-role');
-    if (nameEl) nameEl.textContent = user.name;
-    if (roleEl) roleEl.textContent = user.role || 'موظف';
+    if (nameEl) nameEl.textContent = user.name || 'موظف';
+    if (roleEl) roleEl.textContent = user.title || (user.role === 'admin' ? 'مدير النظام' : 'موظف');
 
-    document.getElementById('login-section').classList.add('hidden');
-    document.getElementById('dashboard-section').classList.remove('hidden');
+    document.getElementById('login-section')?.classList.add('hidden');
+    document.getElementById('dashboard-section')?.classList.remove('hidden');
 
     renderAllTables();
     populateOrderDropdowns();
     populateCategoriesDropdown();
-
     applyUserPermissions();
     switchTab('home');
 }
@@ -283,51 +322,8 @@ function saveEmployee(e) {
     saveData('usersDatabase', usersDatabase);
     alert('تم حفظ بيانات الموظف بنجاح!');
     
-    if (typeof renderAllTables === 'function') renderAllTables();
-    if (typeof switchTab === 'function') switchTab('users');
-}
-
-function handleLogin(event) {
-    if (event) event.preventDefault();
-    
-    usersDatabase = loadData('usersDatabase', usersDatabase);
-
-    const phoneInput = document.getElementById('username');
-    const passInput = document.getElementById('password');
-
-    const phone = phoneInput ? phoneInput.value.trim() : '';
-    const pass = passInput ? passInput.value.trim() : '';
-
-    if (!usersDatabase[phone]) {
-        alert('خطأ: رقم الهاتف غير مسجل بالنظام!');
-        return;
-    }
-
-    const user = usersDatabase[phone];
-
-    if (user.pass !== pass) {
-        alert('خطأ: كلمة المرور غير صحيحة!');
-        return;
-    }
-
-    currentUserPhone = phone;
-    currentUserRole = user.role || 'engineer';
-    localStorage.setItem('currentUserPhone', phone);
-
-    const nameEl = document.getElementById('display-username');
-    const roleEl = document.getElementById('display-role');
-    if (nameEl) nameEl.textContent = user.name || 'موظف';
-    if (roleEl) roleEl.textContent = user.title || (user.role === 'admin' ? 'مدير النظام' : 'موظف');
-
-    document.getElementById('login-section')?.classList.add('hidden');
-    document.getElementById('dashboard-section')?.classList.remove('hidden');
-
-    if (typeof renderAllTables === 'function') renderAllTables();
-    if (typeof populateOrderDropdowns === 'function') populateOrderDropdowns();
-    if (typeof populateCategoriesDropdown === 'function') populateCategoriesDropdown();
-
-    applyUserPermissions();
-    switchTab('home');
+    renderAllTables();
+    switchTab('users');
 }
 
 function editUser(ph) {
@@ -637,7 +633,7 @@ function printSingleClientLedger(clientName) {
     executeWindowPrint(printContent);
 }
 
-// --- دالة الحسابات الأربعة المعتمدة ---
+// --- حسابات المنتجات والأربعة طرق ---
 function calculateRowUnitSpecs(rowId) {
     const row = document.getElementById('ord-prod-row-' + rowId);
     if (!row) return;
@@ -660,11 +656,9 @@ function calculateRowUnitSpecs(rowId) {
     } else if (prodObj.priceType === 'minute') {
         resultInput.value = `${qty} دقيقة`;
     } else if (prodObj.priceType === 'acrylic_facade') {
-        // قاعدة الحروف: كل 50 سم عرض مع ارتفاع 100 سم = وحدة حساب واحدة
         const totalUnits = (width / 50) * (height / 100) * qty;
-        resultInput.value = `${totalUnits.toFixed(2)} وحدة (حروف)`;
+        resultInput.value = `${totalUnits.toFixed(2)} متر حسابي (حروف)`;
     } else {
-        // بالمتر المربع: العرض × الارتفاع ÷ 10,000
         const totalSqm = ((width * height) / 10000) * qty;
         resultInput.value = `${totalSqm.toFixed(2)} م²`;
     }
@@ -952,7 +946,8 @@ function filterProjectsTable() {
 function openOrderPage() {
     document.getElementById('edit-order-index').value = '';
     document.getElementById('order-delivery-date').value = new Date().toISOString().split('T')[0];
-    let currentCounter = parseInt(localStorage.getItem('orderAutoCounter')) || 1;
+    
+    let currentCounter = parseInt(localStorage.getItem('lamsa_orderAutoCounter')) || (fullOrdersList.length + 1);
     const codeInput = document.getElementById('order-code-input');
     if (codeInput) codeInput.value = `ORD - ${currentCounter}`;
 
@@ -960,9 +955,6 @@ function openOrderPage() {
     
     const projSelect = document.getElementById('select-order-project');
     if (projSelect) projSelect.innerHTML = '<option value="">-- اختر العميل أولاً --</option>';
-
-    const deliveryDateInput = document.getElementById('order-delivery-date');
-    if (deliveryDateInput) deliveryDateInput.value = '';
 
     const paidInput = document.getElementById('order-paid-amount');
     if (paidInput) paidInput.value = '';
@@ -1068,11 +1060,11 @@ function saveFullOrder(e) {
             const unitPrice = prodObj ? (parseFloat(prodObj.price) || 0) : 0;
             
             let itemTotal = 0;
-            if (prodObj.priceType === 'unit') {
+            if (prodObj && prodObj.priceType === 'unit') {
                 itemTotal = qty * unitPrice;
-            } else if (prodObj.priceType === 'minute') {
-                itemTotal = qty * unitPrice; // عدد الدقائق × سعر الدقيقة
-            } else if (prodObj.priceType === 'acrylic_facade') {
+            } else if (prodObj && prodObj.priceType === 'minute') {
+                itemTotal = qty * unitPrice;
+            } else if (prodObj && prodObj.priceType === 'acrylic_facade') {
                 itemTotal = (width / 50) * (height / 100) * qty * unitPrice;
             } else {
                 itemTotal = ((width * height) / 10000) * qty * unitPrice;
@@ -1084,9 +1076,11 @@ function saveFullOrder(e) {
     });
 
     let orderCode = document.getElementById('order-code-input')?.value;
-    if (!orderCode) {
-        let currentCounter = parseInt(localStorage.getItem('orderAutoCounter')) || (fullOrdersList.length + 1);
+
+    if (idx === undefined || idx === '') {
+        let currentCounter = parseInt(localStorage.getItem('lamsa_orderAutoCounter')) || (fullOrdersList.length + 1);
         orderCode = `ORD - ${currentCounter}`;
+        saveData('orderAutoCounter', currentCounter + 1);
     }
 
     const orderData = {
@@ -1106,8 +1100,6 @@ function saveFullOrder(e) {
         fullOrdersList[idx] = orderData;
     } else {
         fullOrdersList.unshift(orderData);
-        let currentCounter = parseInt(localStorage.getItem('orderAutoCounter')) || (fullOrdersList.length + 1);
-        localStorage.setItem('orderAutoCounter', currentCounter + 1);
     }
 
     saveData('fullOrdersList', fullOrdersList);
@@ -1129,8 +1121,8 @@ function saveFullOrder(e) {
         saveData('financeTransactions', financeTransactions);
     }
 
-    if (typeof renderAllTables === 'function') renderAllTables();
-    if (typeof switchTab === 'function') switchTab('orders');
+    renderAllTables();
+    switchTab('orders');
 }
 
 function editOrder(index) {
@@ -2316,7 +2308,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const loggedUserPhone = localStorage.getItem('currentUserPhone');
     const loginSec = document.getElementById('login-section');
     const dashSec = document.getElementById('dashboard-section');
+    
     usersDatabase = loadData('usersDatabase', {});
+
+    // تأكد من وجود حساب المدير الأساسي تلقائياً في قاعدة البيانات
+    if (!usersDatabase['01063292810']) {
+        usersDatabase['01063292810'] = { name: 'م/ يوسف محمد', role: 'admin', pass: '252503', title: 'مدير النظام' };
+        saveData('usersDatabase', usersDatabase);
+    }
 
     renderAllTables();
     populateOrderDropdowns();
