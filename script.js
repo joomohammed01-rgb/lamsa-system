@@ -15,20 +15,24 @@ async function loadData(key, defaultValue) {
 
     if (data && data.value) {
       const parsed = JSON.parse(data.value);
-      localStorage.setItem('lamsa_' + key, data.value);
+      localStorage.setItem('lamsa_' +NEXT_PUBLIC_SUPABASE_URL=https://lhyfzbdzppcbwipqdzkv.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_vpkNzG861kogYQq2bRpAcw_LfbWt316, data.value);
       return parsed;
     }
   } catch (err) {
-    console.log("الاعتماد على التخزين المحلي مؤقتاً لـ:", key);
+    console.log("الاعتماد على التخزين المحلي مؤقتاً لـ:", NEXT_PUBLIC_SUPABASE_URL=https://lhyfzbdzppcbwipqdzkv.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_vpkNzG861kogYQq2bRpAcw_LfbWt316);
   }
   
-  const saved = localStorage.getItem('lamsa_' + key);
+  const saved = localStorage.getItem('lamsa_' +NEXT_PUBLIC_SUPABASE_URL=https://lhyfzbdzppcbwipqdzkv.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_vpkNzG861kogYQq2bRpAcw_LfbWt316 );
   return saved ? JSON.parse(saved) : defaultValue;
 }
 
 // 3. دالة حفظ البيانات سحابياً ومحلياً في نفس اللحظة
 async function saveData(key, val) {
-  localStorage.setItem('lamsa_' + key, JSON.stringify(val));
+  localStorage.setItem('lamsa_' + NEXT_PUBLIC_SUPABASE_URL=https://lhyfzbdzppcbwipqdzkv.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_vpkNzG861kogYQq2bRpAcw_LfbWt316, JSON.stringify(val));
   
   try {
     const { error } = await supabase
