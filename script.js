@@ -72,7 +72,6 @@ function handleLogin(event) {
         return;
     }
 
-    localStorage.setItem('currentUserPhone', phone);
 
     const nameEl = document.getElementById('display-username');
     const roleEl = document.getElementById('display-role');
