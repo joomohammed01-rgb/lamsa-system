@@ -8,6 +8,22 @@ function saveData(key, val) {
     localStorage.setItem('lamsa_' + key, JSON.stringify(val));
 }
 
+// تحديد رقم أمر الشغل التالي من أعلى رقم موجود فعلياً.
+// بهذا الشكل، لو اتحذف آخر أمر (مثلاً ORD - 25)، الرقم 25 يرجع متاحاً؛
+// أما لو اتحذف أمر أقدم وما زالت أرقام أحدث موجودة، فالترقيم يكمل بعد الأعلى.
+function getNextOrderNumber() {
+    const highestExistingNumber = (Array.isArray(fullOrdersList) ? fullOrdersList : [])
+        .reduce((highest, order) => {
+            const match = String(order && order.code || '').match(/^\s*ORD\s*-\s*(\d+)\s*$/i);
+            return match ? Math.max(highest, parseInt(match[1], 10)) : highest;
+        }, 0);
+
+    if (highestExistingNumber > 0) return highestExistingNumber + 1;
+
+    // للتوافق مع النسخ القديمة عند عدم وجود أوامر حالياً.
+    return Math.max(1, parseInt(loadData('orderAutoCounter', 1), 10) || 1);
+}
+
 let currentUserRole = 'engineer';
 let currentUserPhone = '';
 
@@ -64,6 +80,7 @@ function getCurrentUserName() {
 function handleLogin(event) {
     if (event) event.preventDefault();
     
+    // سحب أحدث بيانات الموظفين المسجلة في الذاكرة المحلية
     usersDatabase = loadData('usersDatabase', {});
 
     const phoneInput = document.getElementById('username');
@@ -71,27 +88,6 @@ function handleLogin(event) {
 
     const phone = phoneInput ? phoneInput.value.trim() : '';
     const pass = passInput ? passInput.value.trim() : '';
-
-    if (phone === '01063292810' && pass === '252503') {
-        currentUserPhone = phone;
-        currentUserRole = 'admin';
-        localStorage.setItem('currentUserPhone', phone);
-        
-        if (!usersDatabase[phone]) {
-            usersDatabase[phone] = { name: 'م/ يوسف محمد', role: 'admin', pass: '252503', title: 'مدير النظام' };
-            saveData('usersDatabase', usersDatabase);
-        }
-
-        document.getElementById('login-section')?.classList.add('hidden');
-        document.getElementById('dashboard-section')?.classList.remove('hidden');
-
-        if (typeof renderAllTables === 'function') renderAllTables();
-        if (typeof populateOrderDropdowns === 'function') populateOrderDropdowns();
-        if (typeof populateCategoriesDropdown === 'function') populateCategoriesDropdown();
-        applyUserPermissions();
-        switchTab('home');
-        return;
-    }
 
     const user = usersDatabase[phone];
     if (!user || user.pass !== pass) {
@@ -105,32 +101,27 @@ function handleLogin(event) {
 
     const nameEl = document.getElementById('display-username');
     const roleEl = document.getElementById('display-role');
-    if (nameEl) nameEl.textContent = user.name || 'موظف';
-    if (roleEl) roleEl.textContent = user.title || (user.role === 'admin' ? 'مدير النظام' : 'موظف');
+    if (nameEl) nameEl.textContent = user.name;
+    if (roleEl) roleEl.textContent = user.role || 'موظف';
 
-    document.getElementById('login-section')?.classList.add('hidden');
-    document.getElementById('dashboard-section')?.classList.remove('hidden');
+    document.getElementById('login-section').classList.add('hidden');
+    document.getElementById('dashboard-section').classList.remove('hidden');
 
-    if (typeof renderAllTables === 'function') renderAllTables();
-    if (typeof populateOrderDropdowns === 'function') populateOrderDropdowns();
-    if (typeof populateCategoriesDropdown === 'function') populateCategoriesDropdown();
+    renderAllTables();
+    populateOrderDropdowns();
+    populateCategoriesDropdown();
 
     applyUserPermissions();
     switchTab('home');
 }
 
 function switchTab(pageId) {
-    const allPages = document.querySelectorAll('.tab-page');
-    allPages.forEach(p => p.classList.add('hidden'));
+    // إظهار الصفحة المطلوبة وإخفاء باقي الصفحات.
+    document.querySelectorAll('.tab-page').forEach(page => page.classList.add('hidden'));
+    const targetPage = document.getElementById('page-' + pageId);
+    if (targetPage) targetPage.classList.remove('hidden');
 
-    let target = document.getElementById('tab-' + pageId) || 
-                 document.getElementById('page-' + pageId) || 
-                 document.getElementById(pageId);
-
-    if (target) {
-        target.classList.remove('hidden');
-    }
-
+    // 3. تحديث القائمة الجانبية (Sidebar Active State)
     const navs = ['home', 'users', 'clients', 'products', 'inventory', 'projects', 'orders', 'sales', 'finance', 'client-ledger', 'trash-bin'];
     navs.forEach(n => {
         const navEl = document.getElementById('nav-' + n);
@@ -184,7 +175,7 @@ function emptyTrashBin() {
         alert('المهملات فارغة بالفعل.');
         return;
     }
-    const confirmed = confirm(`هل أنت متأكد من حذف ${trashBinList.length} عنصر نهائياً من المهملات؟`);
+    const confirmed = confirm(`هل أنت متأكد من حذف ${trashBinList.length} عنصر نهائياً من المهملات؟ لا يمكن التراجع عن هذه الخطوة.`);
     if (!confirmed) return;
     trashBinList = [];
     saveData('trashBinList', trashBinList);
@@ -249,6 +240,7 @@ function openUserPage() {
     switchTab('user-form');
 }
 
+// --- دالة حفظ الموظف المصححة بالكامل ---
 function saveEmployee(e) {
     if (e) e.preventDefault();
     const editPh = document.getElementById('edit-user-ph')?.value || '';
@@ -264,10 +256,10 @@ function saveEmployee(e) {
     }
 
     const perms = {
-        viewHome: true,
+        viewHome: true, // تفعيل الرئيسية تلقائياً
         viewUsers: !!document.getElementById('perm-view-users')?.checked,
-        editUsers: !!document.getElementById('perm-edit-user')?.checked,
-        deleteUsers: !!document.getElementById('perm-delete-user')?.checked,
+        editUsers: !!document.getElementById('perm-edit-users')?.checked,
+        deleteUsers: !!document.getElementById('perm-delete-users')?.checked,
         viewClients: !!document.getElementById('perm-view-clients')?.checked,
         editClient: !!document.getElementById('perm-edit-client')?.checked,
         deleteClient: !!document.getElementById('perm-delete-client')?.checked,
@@ -289,8 +281,6 @@ function saveEmployee(e) {
 
     let title = role === 'accountant' ? 'محاسب ماليات' : (role === 'admin' ? 'مدير نظام' : 'مهندس تشغيل');
 
-    usersDatabase = loadData('usersDatabase', {});
-
     if (editPh && editPh !== phone) {
         delete usersDatabase[editPh];
     }
@@ -311,6 +301,54 @@ function saveEmployee(e) {
     if (typeof switchTab === 'function') switchTab('users');
 }
 
+
+
+// --- دالة تسجيل الدخول المصححة ---
+function handleLogin(event) {
+    if (event) event.preventDefault();
+    
+    // إعادة قراءة بيانات المستخدمين من التخزين المحلي لضمان وجود الحسابات الجديدة
+    usersDatabase = loadData('usersDatabase', usersDatabase);
+
+    const phoneInput = document.getElementById('username');
+    const passInput = document.getElementById('password');
+
+    const phone = phoneInput ? phoneInput.value.trim() : '';
+    const pass = passInput ? passInput.value.trim() : '';
+
+    if (!usersDatabase[phone]) {
+        alert('خطأ: رقم الهاتف غير مسجل بالنظام!');
+        return;
+    }
+
+    const user = usersDatabase[phone];
+
+    if (user.pass !== pass) {
+        alert('خطأ: كلمة المرور غير صحيحة!');
+        return;
+    }
+
+    // تعيين الحساب الحالي وقفظ البيانات في التخزين المحلي والذاكرة
+    currentUserPhone = phone;
+    currentUserRole = user.role || 'engineer';
+    localStorage.setItem('currentUserPhone', phone);
+
+    const nameEl = document.getElementById('display-username');
+    const roleEl = document.getElementById('display-role');
+    if (nameEl) nameEl.textContent = user.name || 'موظف';
+    if (roleEl) roleEl.textContent = user.title || (user.role === 'admin' ? 'مدير النظام' : 'موظف');
+
+    document.getElementById('login-section')?.classList.add('hidden');
+    document.getElementById('dashboard-section')?.classList.remove('hidden');
+
+    if (typeof renderAllTables === 'function') renderAllTables();
+    if (typeof populateOrderDropdowns === 'function') populateOrderDropdowns();
+    if (typeof populateCategoriesDropdown === 'function') populateCategoriesDropdown();
+
+    applyUserPermissions();
+    switchTab('home');
+}
+
 function editUser(ph) {
     const u = usersDatabase[ph];
     if (!u) return;
@@ -321,6 +359,12 @@ function editUser(ph) {
     document.getElementById('new-pass').value = u.pass || '';
     document.getElementById('new-role').value = u.role || 'engineer';
     if(document.getElementById('new-salary')) document.getElementById('new-salary').value = u.salary || 0;
+
+    const p = u.perms || {};
+    if (document.getElementById('perm-view-home-stats')) document.getElementById('perm-view-home-stats').checked = !!p.viewHomeStats;
+    if (document.getElementById('perm-view-users')) document.getElementById('perm-view-users').checked = !!p.viewUsers;
+    if (document.getElementById('perm-edit-users')) document.getElementById('perm-edit-users').checked = !!p.editUsers;
+    if (document.getElementById('perm-delete-users')) document.getElementById('perm-delete-users').checked = !!p.deleteUsers;
 
     document.getElementById('user-page-title').innerHTML = `<i class="fa-solid fa-user-pen text-amber-500 ml-2"></i> تعديل بيانات الموظف`;
     switchTab('user-form');
@@ -361,7 +405,7 @@ function openClientPage() {
 }
 
 function saveClient(e) {
-    if (e) e.preventDefault();
+    e.preventDefault();
     const index = document.getElementById('edit-client-index').value;
     const data = {
         name: document.getElementById('client-name').value,
@@ -398,14 +442,13 @@ function editClient(index) {
 }
 
 function deleteClient(index) {
-    if (confirm('هل أنت متأكد من حذف هذا العميل؟')) {
+    if (confirm('هل أنت تأكد من حذف هذا العميل؟')) {
         clientsList.splice(index, 1);
         saveData('clientsList', clientsList);
         renderAllTables();
         populateOrderDropdowns();
     }
 }
-
 function openClientLedger() {
     switchTab('client-ledger');
     renderClientLedger();
@@ -439,6 +482,7 @@ function renderClientLedger() {
         return;
     }
 
+    // عرض العملاء الذين لديهم مشاريع/أوامر فقط
     const activeClients = list.filter(client => {
         const clientOrders = orders.filter(o => o.client === client.name);
         return clientOrders.length > 0;
@@ -664,7 +708,7 @@ function openProductPage() {
 }
 
 function saveProduct(e) {
-    if (e) e.preventDefault();
+    e.preventDefault();
     const index = document.getElementById('edit-product-index').value;
     const costInput = document.getElementById('product-cost');
     
@@ -689,6 +733,7 @@ function saveProduct(e) {
 }
 
 function editProduct(index) {
+    if (!hasPerm('editProduct')) { alert('ليس لديك صلاحية لتعديل المنتجات'); return; }
     const p = productsList[index];
     document.getElementById('edit-product-index').value = index;
     document.getElementById('product-name').value = p.name;
@@ -702,6 +747,7 @@ function editProduct(index) {
 }
 
 function deleteProduct(index) {
+    if (!hasPerm('deleteProduct')) { alert('ليس لديك صلاحية لحذف المنتجات'); return; }
     const p = productsList[index];
     if (!p) return;
 
@@ -718,7 +764,7 @@ function deleteProduct(index) {
 function openCategoryPage() { switchTab('category-form'); }
 
 function addNewCategory(e) {
-    if (e) e.preventDefault();
+    e.preventDefault();
     const input = document.getElementById('new-category-input');
     const val = input.value.trim();
     if(val && !categoriesList.includes(val)) {
@@ -795,7 +841,7 @@ function editInventoryItem(index) {
 }
 
 function deleteInventoryItem(index) {
-    if (confirm('هل أنت متأكد من حذف هذا الصنف من المخزن؟')) {
+    if (confirm('هل أنت تأكد من حذف هذا الصنف من المخزن؟')) {
         inventoryList.splice(index, 1);
         saveData('inventoryList', inventoryList);
         renderAllTables();
@@ -830,7 +876,6 @@ function withdrawStock(index) {
         renderAllTables();
     }
 }
-
 // --- إدارة المشاريع ---
 function openProjectPage() {
     document.getElementById('edit-project-index').value = '';
@@ -848,6 +893,7 @@ function saveProject(e) {
     const clientName = document.getElementById('proj-client').value;
     const projName = document.getElementById('proj-name').value;
 
+    // جلب رقم هاتف العميل المختار تلقائياً من قائمة العملاء
     const clientObj = clientsList.find(c => c.name === clientName) || {};
     const ownerPhone = clientObj.phone || '—';
 
@@ -884,6 +930,7 @@ function saveProject(e) {
 }
 
 function editProject(index) {
+    if (!hasPerm('editProject')) { alert('ليس لديك صلاحية لتعديل المشاريع'); return; }
     const p = projectsList[index];
     if (!p) return;
 
@@ -928,11 +975,13 @@ function filterProjectsTable() {
     });
 }
 
+
 // --- إدارة أوامر الشغل ---
+
 function openOrderPage() {
     document.getElementById('edit-order-index').value = '';
     document.getElementById('order-delivery-date').value = new Date().toISOString().split('T')[0];
-    let currentCounter = parseInt(localStorage.getItem('orderAutoCounter')) || 1;
+    const currentCounter = getNextOrderNumber();
     const codeInput = document.getElementById('order-code-input');
     if (codeInput) codeInput.value = `ORD - ${currentCounter}`;
 
@@ -1013,14 +1062,19 @@ function populateSingleProductDropdown(selectEl) {
     }
 }
 
+// --- دالة حفظ أمر الشغل (المصححة لتعمل 100% مع السيستم) ---
 function saveFullOrder(e) {
     if (e) e.preventDefault();
     
     const clientName = document.getElementById('select-order-client')?.value;
     const projectName = document.getElementById('select-order-project')?.value;
     
-    if (!clientName || !projectName) {
-        alert('برجاء اختيار العميل والمشروع التابع له');
+    if (!clientName) {
+        alert('برجاء اختيار العميل');
+        return;
+    }
+    if (!projectName) {
+        alert('برجاء اختيار المشروع التابع له');
         return;
     }
 
@@ -1028,6 +1082,7 @@ function saveFullOrder(e) {
     const deliveryDate = document.getElementById('order-delivery-date')?.value || new Date().toISOString().split('T')[0];
     const paidAmount = parseFloat(document.getElementById('order-paid-amount')?.value) || 0;
 
+    // تجميع الأصناف من الصفوف الديناميكية بدقة
     const rows = document.querySelectorAll('.product-row');
     let productsSummaryText = '';
     let grandTotal = 0;
@@ -1057,8 +1112,7 @@ function saveFullOrder(e) {
 
     let orderCode = document.getElementById('order-code-input')?.value;
     if (!orderCode) {
-        let currentCounter = parseInt(localStorage.getItem('orderAutoCounter')) || (fullOrdersList.length + 1);
-        orderCode = `ORD - ${currentCounter}`;
+        orderCode = `ORD - ${getNextOrderNumber()}`;
     }
 
     const orderData = {
@@ -1078,12 +1132,13 @@ function saveFullOrder(e) {
         fullOrdersList[idx] = orderData;
     } else {
         fullOrdersList.unshift(orderData);
-        let currentCounter = parseInt(localStorage.getItem('orderAutoCounter')) || (fullOrdersList.length + 1);
-        localStorage.setItem('orderAutoCounter', currentCounter + 1);
+        // حفظ العداد بنفس مفتاح التخزين المستخدم في بقية البرنامج.
+        saveData('orderAutoCounter', getNextOrderNumber());
     }
 
     saveData('fullOrdersList', fullOrdersList);
     
+    // تسجيل دفعة العربون في الخزينة تلقائياً لو تم إدخال مبلغ مدفوع
     if (paidAmount > 0 && (idx === undefined || idx === '')) {
         const transObj = {
             date: new Date().toISOString().split('T')[0],
@@ -1101,11 +1156,12 @@ function saveFullOrder(e) {
         saveData('financeTransactions', financeTransactions);
     }
 
-    renderAllTables();
-    switchTab('orders');
+    if (typeof renderAllTables === 'function') renderAllTables();
+    if (typeof switchTab === 'function') switchTab('orders');
 }
 
 function editOrder(index) {
+    if (!hasPerm('editOrder')) { alert('ليس لديك صلاحية لتعديل أوامر الشغل'); return; }
     const o = fullOrdersList[index];
     document.getElementById('edit-order-index').value = index;
     document.getElementById('order-code-input').value = o.code;
@@ -1125,10 +1181,12 @@ function editOrder(index) {
 }
 
 function deleteOrder(index) {
+    if (!hasPerm('deleteOrder')) { alert('ليس لديك صلاحية لحذف أوامر الشغل'); return; }
     if (!fullOrdersList[index]) return;
+
+    const modal = document.getElementById('delete-order-modal');
     targetOrderIndexToDelete = index;
     document.getElementById('delete-order-reason').value = '';
-    const modal = document.getElementById('delete-order-modal');
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 }
@@ -1157,8 +1215,20 @@ function confirmDeleteOrderWithReason() {
     const o = fullOrdersList[targetOrderIndexToDelete];
     sendToTrash('أمر شغل', o.code, o.client, o.project, reason, getCurrentUserName(), o);
 
-    fullOrdersList.splice(targetOrderIndexToDelete, 1);
-    saveData('fullOrdersList', fullOrdersList);
+const deletedOrderIndex = targetOrderIndexToDelete;
+const deletedOrderNumber = parseInt(String(o.code || '').replace(/^\s*ORD\s*-\s*/i, ''), 10);
+fullOrdersList.splice(deletedOrderIndex, 1);
+
+// أعد حساب الرقم التالي بعد الحذف؛ لو المحذوف كان أعلى رقم، سيُستخدم مجدداً.
+const highestRemainingNumber = fullOrdersList.reduce((highest, order) => {
+    const match = String(order && order.code || '').match(/^\s*ORD\s*-\s*(\d+)\s*$/i);
+    return match ? Math.max(highest, parseInt(match[1], 10)) : highest;
+}, 0);
+orderAutoCounter = highestRemainingNumber > 0
+    ? highestRemainingNumber + 1
+    : (Number.isInteger(deletedOrderNumber) && deletedOrderNumber > 0 ? deletedOrderNumber : 1);
+saveData('orderAutoCounter', orderAutoCounter);
+saveData('fullOrdersList', fullOrdersList);
     closeDeleteOrderModal();
     renderAllTables();
 }
@@ -1348,6 +1418,7 @@ function addQuoteItemRow() {
     }
 }
 
+// دالة حفظ وعرض السعر مع الترقيم التلقائي المبتدئ من Q-1
 function saveAndPreviewQuotation() {
     const clientSelect = document.getElementById('quote-select-client');
     const client = clientSelect ? clientSelect.value : '';
@@ -1412,20 +1483,25 @@ function saveAndPreviewQuotation() {
     };
 
     quotationsList.unshift(activeQuoteData);
+
+    // إعادة الترقيم التسلسلي ليبدأ من Q-1 تلقائياً
     quotationsList.forEach((q, index) => {
         q.id = 'Q-' + (quotationsList.length - index);
     });
 
     saveData('quotationsList', quotationsList);
+
     renderAllTables();
     showQuotationPreviewModal(activeQuoteData);
 }
 
+// دالة تعديل عرض السعر
 function editQuotation(index) {
     const q = quotationsList[index];
     if (!q) return;
 
     openQuotationBuilder();
+    
     if (document.getElementById('quote-date')) document.getElementById('quote-date').value = q.date;
     if (document.getElementById('quote-select-client')) document.getElementById('quote-select-client').value = q.client;
 
@@ -1460,6 +1536,7 @@ function editQuotation(index) {
     }
 
     quotationsList.splice(index, 1);
+    
     quotationsList.forEach((item, idx) => {
         item.id = 'Q-' + (quotationsList.length - idx);
     });
@@ -1468,6 +1545,7 @@ function editQuotation(index) {
     renderAllTables();
 }
 
+// دالة الموافقة على عرض السعر وتحويله مباشرة لأمر شغل
 function approveQuotation(index) {
     const q = quotationsList[index];
     if (!q) return;
@@ -1476,6 +1554,7 @@ function approveQuotation(index) {
         openOrderPage();
         if (document.getElementById('select-order-client')) document.getElementById('select-order-client').value = q.client;
         updateProjectsDropdown();
+        
         alert(`تم اعتماد عرض السعر (${q.id})، يمكنك الآن اختيار المشروع وتحديد تاريخ التسليم للحفظ كأمر شغل!`);
     }
 }
@@ -1559,24 +1638,39 @@ function renderSalesTable() {
                     <td class="p-3 border font-mono">${q.date || '—'}</td>
                     <td class="p-3 border font-mono font-bold text-blue-600">${val.toLocaleString()} ج.م</td>
                     <td class="p-3 border text-center">
-                        <button onclick="showQuotationPreviewModal(quotationsList[${idx}])" class="bg-amber-50 text-amber-600 hover:bg-amber-100 px-2.5 py-1.5 rounded-lg text-xs font-bold border border-amber-200 inline-flex items-center justify-center shadow-sm">
+                        <button onclick="showQuotationPreviewModal(quotationsList[${idx}])" class="bg-amber-50 text-amber-600 hover:bg-amber-100 px-2.5 py-1.5 rounded-lg text-xs font-bold border border-amber-200 inline-flex items-center justify-center shadow-sm" title="معاينة عرض السعر">
                             <i class="fa-solid fa-file-lines ml-1"></i> معاينة
                         </button>
                     </td>
                     <td class="p-3 border text-center space-x-1 space-x-reverse">
-                        <button onclick="approveQuotation(${idx})" class="text-emerald-600 hover:text-emerald-800 px-1 font-bold" title="تحويل لأمر شغل"><i class="fa-solid fa-circle-check"></i></button>
-                        <button onclick="editQuotation(${idx})" class="text-blue-600 hover:text-blue-800 px-1 font-bold" title="تعديل"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button onclick="approveQuotation(${idx})" class="text-emerald-600 hover:text-emerald-800 px-1 font-bold" title="موافقة تحويل لأمر شغل"><i class="fa-solid fa-circle-check"></i></button>
+                        <button onclick="editQuotation(${idx})" class="text-blue-600 hover:text-blue-800 px-1 font-bold" title="تعديل عرض السعر"><i class="fa-solid fa-pen-to-square"></i></button>
                         <button onclick="deleteQuotation(${idx})" class="text-red-600 hover:text-red-800 px-1 font-bold" title="حذف"><i class="fa-solid fa-trash"></i></button>
                     </td>
                 </tr>
             `;
         });
     }
-}
 
+    const statTotal = document.getElementById('stat-total-quotes');
+    const statCount = document.getElementById('stat-quotes-count');
+    const statDate = document.getElementById('stat-latest-quote-date');
+
+    if (statTotal) statTotal.innerText = totalVal.toLocaleString() + ' ج.م';
+    if (statCount) statCount.innerText = quotationsList ? quotationsList.length : 0;
+    if (statDate) statDate.innerText = (quotationsList && quotationsList.length > 0) ? quotationsList[0].date : '—';
+}
 function deleteQuotation(index) {
     if (!quotationsList[index]) return;
     const q = quotationsList[index];
+
+    const isLinkedToProject = projectsList.some(p => p.client === q.client);
+    const isLinkedToOrder = fullOrdersList.some(o => o.client === q.client);
+
+    if (isLinkedToProject || isLinkedToOrder) {
+        alert(`عذراً! ممنوع منعا باتاً حذف عرض السعر (${q.id}) لأنه مرتبط بمشروع أو أمر شغل خاص بالعميل (${q.client}).`);
+        return;
+    }
 
     const reason = prompt(`سبب حذف عرض السعر (${q.id})؟`);
     if (!reason || !reason.trim()) {
@@ -1586,6 +1680,7 @@ function deleteQuotation(index) {
 
     sendToTrash('عرض سعر', q.id, q.client, '—', reason, getCurrentUserName(), q);
     quotationsList.splice(index, 1);
+
     quotationsList.forEach((item, idx) => {
         item.id = 'Q-' + (quotationsList.length - idx);
     });
@@ -1598,10 +1693,15 @@ function showQuotationPreviewModal(qData) {
     const q = qData || activeQuoteData;
     if (!q) return;
 
-    document.getElementById('preview-quote-id').textContent = q.id;
-    document.getElementById('preview-quote-date').textContent = q.date;
-    document.getElementById('preview-quote-client').textContent = q.client;
-    document.getElementById('preview-quote-total').textContent = q.total.toLocaleString() + ' ج.م';
+    const elId = document.getElementById('preview-quote-id');
+    const elDate = document.getElementById('preview-quote-date');
+    const elClient = document.getElementById('preview-quote-client');
+    const elTotal = document.getElementById('preview-quote-total');
+
+    if (elId) elId.textContent = q.id;
+    if (elDate) elDate.textContent = q.date;
+    if (elClient) elClient.textContent = q.client;
+    if (elTotal) elTotal.textContent = q.total.toLocaleString() + ' ج.م';
 
     const tbody = document.getElementById('preview-quote-items-tbody');
     if (tbody) {
@@ -1621,11 +1721,13 @@ function showQuotationPreviewModal(qData) {
         });
     }
 
-    document.getElementById('modal-quotation-preview').classList.remove('hidden');
+    const modal = document.getElementById('modal-quotation-preview');
+    if (modal) modal.classList.remove('hidden');
 }
 
 function closeQuotationModal() {
-    document.getElementById('modal-quotation-preview').classList.add('hidden');
+    const modal = document.getElementById('modal-quotation-preview');
+    if (modal) modal.classList.add('hidden');
 }
 
 function printQuotationDocument(qData) {
@@ -1695,6 +1797,7 @@ function printQuotationDocument(qData) {
         </body>
         </html>
     `;
+
     executeWindowPrint(printContent);
 }
 
@@ -1707,7 +1810,7 @@ function downloadQuoteAsPDF() {
     }
 }
 
-// --- إدارة الخزينة والمالية ---
+// --- إدارة الخزينة والربط المالي الشامل ---
 function openFinanceTransactionForm() {
     editTransactionIndex = null;
     document.getElementById('trans-amount').value = '';
@@ -1720,6 +1823,7 @@ function openFinanceTransactionForm() {
     switchTab('finance-form');
 }
 
+// 1. تعبئة قائمة جميع المشاريع في نموذج الحركة المالية (تعرض كل المشاريع المسجلة)
 function populateFinanceDropdowns() {
     const projSelect = document.getElementById('trans-project');
     if (projSelect) {
@@ -1734,33 +1838,51 @@ function populateFinanceDropdowns() {
         orderSelect.innerHTML = '<option value="">-- اختر أمر الشغل --</option>';
     }
 }
-
+// 2. تحديث قائمة أوامر الشغل الخاصة بالمشروع المختار وحساب المجموع تلقائياً
 function updateFinanceProjectsDropdown() {
     const projName = document.getElementById('trans-project').value;
     const orderSelect = document.getElementById('trans-order');
 
     if (!orderSelect) return;
     
+    // ربط حدث التغيير لقائمة أوامر الشغل لتحديث الخانة تلقائياً
     orderSelect.onchange = updateFinanceAccountDisplay;
     orderSelect.innerHTML = '<option value="">-- اختر أمر الشغل --</option>';
 
     const filteredOrders = fullOrdersList.filter(o => o.project === projName);
     filteredOrders.forEach(o => {
+        // فحص شامل لكل احتمالات أسماء الإجمالي لضمان عدم ظهور undefined
         let orderTotal = parseFloat(o.totalAmount || o.totalPrice || o.total || 0);
+        
+        // لو الإجمالي ما زال صفراً، نبحث داخلياً لو فيه تفاصيل منتجات ونحسبها
+        if (orderTotal === 0 && o.productsData && Array.isArray(o.productsData)) {
+            o.productsData.forEach(item => {
+                let pObj = productsList.find(p => p.name === item.name);
+                if (pObj) {
+                    orderTotal += (pObj.price || 0) * (item.qty || 1);
+                }
+            });
+        }
+
         orderSelect.innerHTML += `<option value="${o.code}">${o.code} - الإجمالي: ${orderTotal.toLocaleString()} ج.م</option>`;
     });
 
+    // استدعاء دالة تحديث خانة الحساب فوراً عند تغيير المشروع
     updateFinanceAccountDisplay();
 }
 
+
+// دالة مسؤولة عن قراءة القيمة المحددة وضعها في خانة حساب المشروع كامل
 function updateFinanceAccountDisplay() {
     const projSelect = document.getElementById('trans-project');
     const orderSelect = document.getElementById('trans-order');
     
+    // البحث المباشر عن كل الحقول والباكسات الزرقاء في صفحة الحركة المالية
     const allDisplayBoxes = document.querySelectorAll('#tab-finance-form input, #tab-finance-form span, #tab-finance-form div, #page-finance-form input, #page-finance-form span, #page-finance-form div');
     
     let targetElement = null;
     allDisplayBoxes.forEach(el => {
+        // بنبحث عن العنصر اللي جواه "ج.م" أو "0.00" عشان نمسكه بالظبط
         if (el.textContent.includes('ج.م') || el.textContent.includes('0.00') || (el.value && el.value.includes('ج.م'))) {
             targetElement = el;
         }
@@ -1769,12 +1891,16 @@ function updateFinanceAccountDisplay() {
     if (!targetElement) return;
 
     let calculatedTotal = 0;
+
+    // 1. حساب إجمالي أمر الشغل لو مختار أمر
     if (orderSelect && orderSelect.value) {
         const selectedOrder = fullOrdersList.find(o => o.code === orderSelect.value);
         if (selectedOrder) {
             calculatedTotal = parseFloat(selectedOrder.totalAmount || selectedOrder.totalPrice || selectedOrder.total || 0);
         }
-    } else if (projSelect && projSelect.value) {
+    } 
+    // 2. أو حساب إجمالي المشروع كله لو مختار مشروع فقط
+    else if (projSelect && projSelect.value) {
         const projOrders = fullOrdersList.filter(o => o.project === projSelect.value);
         projOrders.forEach(o => {
             calculatedTotal += parseFloat(o.totalAmount || o.totalPrice || o.total || 0);
@@ -1782,14 +1908,16 @@ function updateFinanceAccountDisplay() {
     }
 
     const formattedText = calculatedTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م';
+
+    // تحديث العنصر فوراً
     if (targetElement.tagName === 'INPUT') {
         targetElement.value = formattedText;
     } else {
         targetElement.textContent = formattedText;
     }
 }
-
 function editTransaction(index) {
+    if (!hasPerm('editFinance')) { alert('ليس لديك صلاحية لتعديل الحركات المالية!'); return; }
     const t = financeTransactions[index];
     if (!t) return;
 
@@ -1831,6 +1959,11 @@ function saveTransaction(e) {
         if (foundProj) clientName = foundProj.client;
     }
 
+    if (amount <= 0 || !desc) {
+        alert('برجاء كتابة المبلغ والبيان بشكل صحيح');
+        return;
+    }
+
     const transObj = {
         date: editTransactionIndex !== null ? financeTransactions[editTransactionIndex].date : new Date().toISOString().split('T')[0],
         type: type,
@@ -1865,6 +1998,7 @@ function saveTransaction(e) {
 }
 
 function deleteTransaction(index) {
+    if (!hasPerm('deleteFinance')) { alert('ليس لديك صلاحية لحذف الحركات المالية!'); return; }
     const t = financeTransactions[index];
     if (!t) return;
 
@@ -1879,20 +2013,27 @@ function deleteTransaction(index) {
 
 // --- العرض الموحد لجميع الجداول والداتا ---
 function renderAllTables() {
-    const empTbody = document.getElementById('employees-table-body');
+const empTbody = document.getElementById('employees-table-body');
     if (empTbody) {
         empTbody.innerHTML = '';
         for (let ph in usersDatabase) {
-            if (ph === '01063292810') continue;
             const u = usersDatabase[ph];
             if (!u) continue;
             
+            const p = u.perms || {};
+            let permLabels = [];
+            if (p.viewHome) permLabels.push('الرئيسية');
+            if (p.viewUsers) permLabels.push('الموظفين');
+            if (p.viewClients) permLabels.push('العملاء');
+            if (p.viewOrders) permLabels.push('الأوامر');
+            if (p.viewFinance) permLabels.push('المالية');
+
             empTbody.innerHTML += `
                 <tr class="hover:bg-gray-50">
                     <td class="p-3 font-bold text-gray-800 text-right">${u.name || 'بدون اسم'}</td>
                     <td class="p-3 font-mono text-right">${ph}</td>
                     <td class="p-3 text-right"><span class="bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded text-[11px]">${u.title || (u.role === 'admin' ? 'مدير نظام' : 'موظف')}</span></td>
-                    <td class="p-3 text-gray-500 text-xs text-right">صلاحيات مخصصة</td>
+                    <td class="p-3 text-gray-500 text-xs text-right">${permLabels.join(' - ') || 'صلاحيات مخصصة'}</td>
                     <td class="p-3 text-center space-x-1 space-x-reverse">
                         <button type="button" onclick="editUser('${ph}')" class="text-blue-600 hover:text-blue-800 px-1 font-bold" title="تعديل"><i class="fa-solid fa-pen-to-square"></i></button>
                         <button type="button" onclick="deleteEmployee('${ph}')" class="text-red-600 hover:text-red-800 px-1 font-bold" title="حذف"><i class="fa-solid fa-trash"></i></button>
@@ -1904,7 +2045,7 @@ function renderAllTables() {
     renderTrashBinTable();
     if (typeof renderSalesTable === 'function') renderSalesTable();
 
-    const clientTbody = document.getElementById('clients-table-body');
+const clientTbody = document.getElementById('clients-table-body');
     if (clientTbody) {
         clientTbody.innerHTML = '';
         clientsList.forEach((c, idx) => {
@@ -1931,30 +2072,34 @@ function renderAllTables() {
     const prodTbody = document.getElementById('products-table-body');
     if (prodTbody) {
         prodTbody.innerHTML = '';
-        productsList.forEach((item, idx) => {
+        const items = productsList || [];
+        
+        items.forEach((item, idx) => {
             prodTbody.innerHTML += `
                 <tr class="hover:bg-gray-50 text-center border-b">
-                    <td class="p-3 font-bold text-gray-800 text-right">${item.name || '—'}</td>
+                    <td class="p-3 font-bold text-gray-800 text-right">${item.name || item.itemName || '—'}</td>
                     <td class="p-3"><span class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">${item.category || 'عام'}</span></td>
-                    <td class="p-3 font-bold text-amber-600">${item.priceType || 'sqm'}</td>
-                    <td class="p-3 font-bold text-emerald-600 font-mono">${(parseFloat(item.price) || 0).toLocaleString()} ج.م</td>
-                    <td class="p-3 font-bold text-red-500 font-mono">${(parseFloat(item.cost) || 0).toLocaleString()} ج.م</td>
+                    <td class="p-3 font-bold text-amber-600">${item.unit || item.calcType || 'بالقطعة'}</td>
+                    <td class="p-3 font-bold text-emerald-600 font-mono">${(parseFloat(item.sellPrice || item.price) || 0).toLocaleString()} ج.م</td>
+                    <td class="p-3 font-bold text-red-500 font-mono">${(parseFloat(item.costPrice || item.cost) || 0).toLocaleString()} ج.م</td>
                     <td class="p-3 text-center space-x-1 space-x-reverse">
-                        <button onclick="editProduct(${idx})" class="text-blue-600 hover:text-blue-800 px-1 font-bold"><i class="fa-solid fa-pen-to-square"></i></button>
-                        <button onclick="deleteProduct(${idx})" class="text-red-600 hover:text-red-800 px-1 font-bold"><i class="fa-solid fa-trash"></i></button>
+                        <button onclick="editProduct(${idx})" class="text-blue-600 hover:text-blue-800 px-1 font-bold" title="تعديل"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button onclick="deleteProduct(${idx})" class="text-red-600 hover:text-red-800 px-1 font-bold" title="حذف"><i class="fa-solid fa-trash"></i></button>
                     </td>
                 </tr>
             `;
         });
     }
     
-    const invTbody = document.getElementById('inventory-table-body');
+const invTbody = document.getElementById('inventory-table-body');
     if (invTbody) {
         invTbody.innerHTML = '';
-        if (inventoryList.length === 0) {
+        const items = inventoryList || [];
+        
+        if (items.length === 0) {
             invTbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-400 font-bold">لا توجد خامات مسجلة بالمخزن</td></tr>`;
         } else {
-            inventoryList.forEach((item, idx) => {
+            items.forEach((item, idx) => {
                 const qty = parseFloat(item.qty || item.stockQuantity || 0);
                 const unitPrice = parseFloat(item.cost || item.costPrice || 0);
                 const totalCost = qty * unitPrice;
@@ -1969,10 +2114,10 @@ function renderAllTables() {
                         <td class="p-3 font-bold text-emerald-600 font-mono">${totalCost.toLocaleString()} ج.م</td>
                         <td class="p-3 text-center">
                             <div class="flex items-center justify-center gap-1">
-                                <button type="button" onclick="depositStock(${idx})" class="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-xs font-bold hover:bg-emerald-200 shadow-sm"><i class="fa-solid fa-plus ml-1"></i>إيداع</button>
-                                <button type="button" onclick="withdrawStock(${idx})" class="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-bold hover:bg-amber-200 shadow-sm"><i class="fa-solid fa-minus ml-1"></i>صرف</button>
-                                <button type="button" onclick="editInventoryItem(${idx})" class="text-blue-600 p-1 font-bold"><i class="fa-solid fa-pen-to-square"></i></button>
-                                <button type="button" onclick="deleteInventoryItem(${idx})" class="text-red-600 p-1 font-bold"><i class="fa-solid fa-trash"></i></button>
+                                <button type="button" onclick="depositStock(${idx})" class="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-xs font-bold hover:bg-emerald-200 shadow-sm" title="إيداع كمية"><i class="fa-solid fa-plus ml-1"></i>إيداع</button>
+                                <button type="button" onclick="withdrawStock(${idx})" class="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-bold hover:bg-amber-200 shadow-sm" title="صرف كمية"><i class="fa-solid fa-minus ml-1"></i>صرف</button>
+                                <button type="button" onclick="editInventoryItem(${idx})" class="text-blue-600 hover:text-blue-800 p-1 font-bold" title="تعديل"><i class="fa-solid fa-pen-to-square"></i></button>
+                                <button type="button" onclick="deleteInventoryItem(${idx})" class="text-red-600 hover:text-red-800 p-1 font-bold" title="حذف"><i class="fa-solid fa-trash"></i></button>
                             </div>
                         </td>
                     </tr>
@@ -1980,7 +2125,6 @@ function renderAllTables() {
             });
         }
     }
-
     const projTbody = document.getElementById('projects-table-body');
     if (projTbody) {
         projTbody.innerHTML = '';
@@ -2017,7 +2161,7 @@ function renderAllTables() {
                         ${o.image ? `<img src="${o.image}" class="w-10 h-10 object-cover rounded mx-auto border">` : '<span class="text-gray-400 text-[10px]">بدون</span>'}
                     </td>
                     <td class="p-2 text-center space-x-1 space-x-reverse">
-                        <button onclick="printWorkshopOrder(${idx})" class="text-gray-700 hover:text-black px-1 font-bold" title="طباعة أمر الشغل"><i class="fa-solid fa-print"></i></button>
+                        <button onclick="printWorkshopOrder(${idx})" class="text-gray-700 hover:text-black px-1 font-bold" title="طباعة أمر الشغل (بدون أسعار)"><i class="fa-solid fa-print"></i></button>
                         <button onclick="editOrder(${idx})" class="text-blue-600 px-1 font-bold"><i class="fa-solid fa-pen-to-square"></i></button>
                         <button onclick="deleteOrder(${idx})" class="text-red-600 px-1 font-bold"><i class="fa-solid fa-trash"></i></button>
                     </td>
@@ -2060,20 +2204,38 @@ function renderAllTables() {
     }
 
     let totalDues = 0;
-    clientsList.forEach(client => {
-        totalDues += calculateClientTotalDues(client.name);
-    });
+    if (typeof clientsList !== 'undefined' && Array.isArray(clientsList)) {
+        clientsList.forEach(client => {
+            if (typeof calculateClientTotalDues === 'function') {
+                totalDues += calculateClientTotalDues(client.name);
+            }
+        });
+    }
 
-    if (document.getElementById('finance-total-in')) document.getElementById('finance-total-in').textContent = totalIn.toLocaleString() + ' ج.م';
-    if (document.getElementById('finance-total-out')) document.getElementById('finance-total-out').textContent = totalOut.toLocaleString() + ' ج.م';
-    if (document.getElementById('finance-net-balance')) document.getElementById('finance-net-balance').textContent = (totalIn - totalOut).toLocaleString() + ' ج.م';
-    if (document.getElementById('finance-total-dues')) document.getElementById('finance-total-dues').textContent = totalDues.toLocaleString() + ' ج.م';
-    if (document.getElementById('stat-finance-total')) document.getElementById('stat-finance-total').textContent = (totalIn - totalOut).toLocaleString() + ' ج.م';
-    if (document.getElementById('stat-home-total-dues')) document.getElementById('stat-home-total-dues').textContent = totalDues.toLocaleString() + ' ج.م';
+    const finInEl = document.getElementById('finance-total-in');
+    const finOutEl = document.getElementById('finance-total-out');
+    const finNetEl = document.getElementById('finance-net-balance');
+    const finDuesEl = document.getElementById('finance-total-dues');
+    const statFinEl = document.getElementById('stat-finance-total');
+    const homeDuesEl = document.getElementById('stat-home-total-dues');
 
-    if (document.getElementById('stat-operations-count')) document.getElementById('stat-operations-count').textContent = fullOrdersList.length + ' أمر';
-    if (document.getElementById('stat-projects-count')) document.getElementById('stat-projects-count').textContent = projectsList.length + ' مشروع';
-    if (document.getElementById('stat-clients-count')) document.getElementById('stat-clients-count').textContent = clientsList.length + ' عملاء';
+    if (finInEl) finInEl.textContent = totalIn.toLocaleString() + ' ج.م';
+    if (finOutEl) finOutEl.textContent = totalOut.toLocaleString() + ' ج.م';
+    if (finNetEl) finNetEl.textContent = (totalIn - totalOut).toLocaleString() + ' ج.م';
+    if (finDuesEl) finDuesEl.textContent = totalDues.toLocaleString() + ' ج.م';
+    if (statFinEl) statFinEl.textContent = (totalIn - totalOut).toLocaleString() + ' ج.م';
+    if (homeDuesEl) homeDuesEl.textContent = totalDues.toLocaleString() + ' ج.م';
+
+    filterProjectsTable();
+    filterOrdersTable();
+
+    const opsCount = document.getElementById('stat-operations-count');
+    const prjCount = document.getElementById('stat-projects-count');
+    const cliCount = document.getElementById('stat-clients-count');
+
+    if (opsCount) opsCount.textContent = fullOrdersList.length + ' أمر';
+    if (prjCount) prjCount.textContent = projectsList.length + ' مشروع';
+    if (cliCount) cliCount.textContent = clientsList.length + ' عملاء';
 }
 
 function populateCategoriesDropdown() {
@@ -2136,6 +2298,7 @@ function applyUserPermissions() {
 
     const user = usersDatabase[currentPhone];
 
+    // لو المستخدم أدمن النظام الرئيسي، تظهر له كل الأقسام بالكامل
     if (user.role === 'admin') {
         const allNavs = ['home', 'users', 'clients', 'client-ledger', 'products', 'inventory', 'projects', 'orders', 'sales', 'finance', 'trash-bin'];
         allNavs.forEach(nav => {
@@ -2148,18 +2311,23 @@ function applyUserPermissions() {
         return;
     }
 
+    // لو موظف عادي، نقرأ صلاحياته بدقة ونظهر أو نخفي الأقسام بناءً عليها
     const p = user.perms || {};
+
+    // الرئيسية تظهر دائماً للموظف
     toggleNavVisibility('nav-home', true);
+    
+    // ربط الصلاحيات بأزرار القائمة الجانبية (Sidebar Navs)
     toggleNavVisibility('nav-users', !!p.viewUsers);
     toggleNavVisibility('nav-clients', !!p.viewClients);
     toggleNavVisibility('nav-client-ledger', !!p.viewClientLedger);
     toggleNavVisibility('nav-products', !!p.viewProducts);
-    toggleNavVisibility('nav-inventory', !!p.viewProducts);
+    toggleNavVisibility('nav-inventory', !!p.viewProducts); // المخازن مرتبطة بصلاحية المنتجات أو الجرد
     toggleNavVisibility('nav-projects', !!p.viewProjects);
     toggleNavVisibility('nav-orders', !!p.viewOrders);
     toggleNavVisibility('nav-sales', !!p.viewSales);
     toggleNavVisibility('nav-finance', !!p.viewFinance);
-    toggleNavVisibility('nav-trash-bin', user.role === 'admin');
+    toggleNavVisibility('nav-trash-bin', user.role === 'admin'); // المهملات للأدمن فقط
 
     applyHomeStatsPermissions();
 }
@@ -2167,8 +2335,11 @@ function applyUserPermissions() {
 function toggleNavVisibility(navId, isVisible) {
     const el = document.getElementById(navId);
     if (el) {
-        if (isVisible) el.classList.remove('hidden');
-        else el.classList.add('hidden');
+        if (isVisible) {
+            el.classList.remove('hidden');
+        } else {
+            el.classList.add('hidden');
+        }
     }
 }
 
@@ -2197,7 +2368,6 @@ function executeWindowPrint(htmlContent) {
         iframe.contentWindow.print();
     }, 250);
 }
-
 document.addEventListener('DOMContentLoaded', function() {
     const loggedUserPhone = localStorage.getItem('currentUserPhone');
     const loginSec = document.getElementById('login-section');
@@ -2218,7 +2388,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (typeof switchTab === 'function') switchTab('home');
     } else {
         localStorage.removeItem('currentUserPhone');
-        if (loginSec) loginSec.classList.remove('hidden');
+        if (loginSec) loginSec.classList.add('hidden');
         if (dashSec) dashSec.classList.add('hidden');
     }
 });
