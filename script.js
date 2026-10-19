@@ -2355,24 +2355,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     usersDatabase = loadData('usersDatabase', {});
 
-    // حقن الحسابات الأساسية لضمان عملها على أي جهاز
-    const defaultUsers = {
-        '01063292810': { name: 'م/ يوسف محمد', role: 'admin', pass: '252503', title: 'مدير النظام' },
-        '01125291114': { name: 'م/ خالد السيد', role: 'admin', pass: '123456', title: 'مدير نظام' },
-        '01011521619': { name: 'عبد الرحمن صالح', role: 'engineer', pass: '123456', title: 'مهندس تشغيل' }
-    };
-
-    let updated = false;
-    for (let ph in defaultUsers) {
-        if (!usersDatabase[ph]) {
-            usersDatabase[ph] = defaultUsers[ph];
-            updated = true;
-        }
-    }
-    if (updated) {
-        saveData('usersDatabase', usersDatabase);
-    }
-
     if (typeof renderAllTables === 'function') renderAllTables();
     if (typeof populateOrderDropdowns === 'function') populateOrderDropdowns();
 
@@ -2386,7 +2368,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (typeof switchTab === 'function') switchTab('home');
     } else {
         localStorage.removeItem('currentUserPhone');
-        if (loginSec) loginSec.classList.remove('hidden');
+        if (loginSec) loginSec.classList.add('hidden');
         if (dashSec) dashSec.classList.add('hidden');
     }
 });
