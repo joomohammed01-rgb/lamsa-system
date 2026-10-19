@@ -97,11 +97,9 @@ function hasPerm(permKey) {
 }
 
 function switchTab(pageId) {
-    // 1. إخفاء كل صفحات الـ tab والـ page الموجودة في النظام
     const allPages = document.querySelectorAll('.tab-page');
     allPages.forEach(p => p.classList.add('hidden'));
 
-    // 2. البحث عن الصفحة المستهدفة سواء كانت تبدأ بـ tab- أو page- وعرضها فوراً
     let target = document.getElementById('tab-' + pageId) || 
                  document.getElementById('page-' + pageId) || 
                  document.getElementById(pageId);
@@ -112,7 +110,6 @@ function switchTab(pageId) {
         console.warn('الصفحة غير موجودة:', pageId);
     }
 
-    // 3. تحديث القائمة الجانبية (Sidebar Active State)
     const navs = ['home', 'users', 'clients', 'products', 'inventory', 'projects', 'orders', 'sales', 'finance', 'client-ledger', 'trash-bin'];
     navs.forEach(n => {
         const navEl = document.getElementById('nav-' + n);
@@ -231,7 +228,6 @@ function openUserPage() {
     switchTab('user-form');
 }
 
-// --- دالة حفظ الموظف المصححة بالكامل ---
 function saveEmployee(e) {
     if (e) e.preventDefault();
     const editPh = document.getElementById('edit-user-ph')?.value || '';
@@ -247,7 +243,7 @@ function saveEmployee(e) {
     }
 
     const perms = {
-        viewHome: true, // تفعيل الرئيسية تلقائياً
+        viewHome: true,
         viewUsers: !!document.getElementById('perm-view-users')?.checked,
         editUsers: !!document.getElementById('perm-edit-users')?.checked,
         deleteUsers: !!document.getElementById('perm-delete-users')?.checked,
@@ -292,13 +288,9 @@ function saveEmployee(e) {
     if (typeof switchTab === 'function') switchTab('users');
 }
 
-
-
-// --- دالة تسجيل الدخول المصححة ---
 function handleLogin(event) {
     if (event) event.preventDefault();
     
-    // إعادة قراءة بيانات المستخدمين من التخزين المحلي لضمان وجود الحسابات الجديدة
     usersDatabase = loadData('usersDatabase', usersDatabase);
 
     const phoneInput = document.getElementById('username');
@@ -319,7 +311,6 @@ function handleLogin(event) {
         return;
     }
 
-    // تعيين الحساب الحالي وقفظ البيانات في التخزين المحلي والذاكرة
     currentUserPhone = phone;
     currentUserRole = user.role || 'engineer';
     localStorage.setItem('currentUserPhone', phone);
@@ -350,12 +341,6 @@ function editUser(ph) {
     document.getElementById('new-pass').value = u.pass || '';
     document.getElementById('new-role').value = u.role || 'engineer';
     if(document.getElementById('new-salary')) document.getElementById('new-salary').value = u.salary || 0;
-
-    const p = u.perms || {};
-    if (document.getElementById('perm-view-home-stats')) document.getElementById('perm-view-home-stats').checked = !!p.viewHomeStats;
-    if (document.getElementById('perm-view-users')) document.getElementById('perm-view-users').checked = !!p.viewUsers;
-    if (document.getElementById('perm-edit-users')) document.getElementById('perm-edit-users').checked = !!p.editUsers;
-    if (document.getElementById('perm-delete-users')) document.getElementById('perm-delete-users').checked = !!p.deleteUsers;
 
     document.getElementById('user-page-title').innerHTML = `<i class="fa-solid fa-user-pen text-amber-500 ml-2"></i> تعديل بيانات الموظف`;
     switchTab('user-form');
@@ -440,6 +425,7 @@ function deleteClient(index) {
         populateOrderDropdowns();
     }
 }
+
 function openClientLedger() {
     switchTab('client-ledger');
     renderClientLedger();
@@ -473,7 +459,6 @@ function renderClientLedger() {
         return;
     }
 
-    // عرض العملاء الذين لديهم مشاريع/أوامر فقط
     const activeClients = list.filter(client => {
         const clientOrders = orders.filter(o => o.client === client.name);
         return clientOrders.length > 0;
@@ -653,7 +638,7 @@ function printSingleClientLedger(clientName) {
     executeWindowPrint(printContent);
 }
 
-// --- إدارة حسابات وتسعير الأكريليك والمنتجات ---
+// --- دالة الحسابات الأربعة المعتمدة ---
 function calculateRowUnitSpecs(rowId) {
     const row = document.getElementById('ord-prod-row-' + rowId);
     if (!row) return;
@@ -673,16 +658,14 @@ function calculateRowUnitSpecs(rowId) {
 
     if (prodObj.priceType === 'unit') {
         resultInput.value = `${qty} قطعة`;
-    } else if (prodObj.priceType === 'lm') {
-        const totalLM = (height / 100) * qty;
-        resultInput.value = `${totalLM.toFixed(2)} متر طولي`;
+    } else if (prodObj.priceType === 'minute') {
+        resultInput.value = `${qty} دقيقة`;
     } else if (prodObj.priceType === 'acrylic_facade') {
-        let heightMultiplier = Math.ceil(height / 50);
-        if (heightMultiplier < 1) heightMultiplier = 1;
-        const widthFactor = width / 100;
-        const totalUnits = heightMultiplier * widthFactor * qty;
-        resultInput.value = `${totalUnits.toFixed(2)} متر احتسابي (واجهة أكريليك)`;
+        // قاعدة الحروف: كل 50 سم عرض مع ارتفاع 100 سم = وحدة حساب واحدة
+        const totalUnits = (width / 50) * (height / 100) * qty;
+        resultInput.value = `${totalUnits.toFixed(2)} وحدة (حروف)`;
     } else {
+        // بالمتر المربع: العرض × الارتفاع ÷ 10,000
         const totalSqm = ((width * height) / 10000) * qty;
         resultInput.value = `${totalSqm.toFixed(2)} م²`;
     }
@@ -867,6 +850,7 @@ function withdrawStock(index) {
         renderAllTables();
     }
 }
+
 // --- إدارة المشاريع ---
 function openProjectPage() {
     document.getElementById('edit-project-index').value = '';
@@ -884,7 +868,6 @@ function saveProject(e) {
     const clientName = document.getElementById('proj-client').value;
     const projName = document.getElementById('proj-name').value;
 
-    // جلب رقم هاتف العميل المختار تلقائياً من قائمة العملاء
     const clientObj = clientsList.find(c => c.name === clientName) || {};
     const ownerPhone = clientObj.phone || '—';
 
@@ -966,9 +949,7 @@ function filterProjectsTable() {
     });
 }
 
-
 // --- إدارة أوامر الشغل ---
-
 function openOrderPage() {
     document.getElementById('edit-order-index').value = '';
     document.getElementById('order-delivery-date').value = new Date().toISOString().split('T')[0];
@@ -1024,7 +1005,7 @@ function addProductRow() {
             <input type="number" oninput="calculateRowUnitSpecs('${rowId}')" placeholder="الارتفاع" class="product-height w-full px-2 py-1.5 border rounded text-xs outline-none">
         </div>
         <div class="md:col-span-1">
-            <label class="block text-[11px] font-bold text-amber-800 mb-1">العدد</label>
+            <label class="block text-[11px] font-bold text-amber-800 mb-1">العدد/الدقائق</label>
             <input type="number" value="1" min="1" oninput="calculateRowUnitSpecs('${rowId}')" placeholder="1" class="product-qty w-full px-2 py-1.5 border rounded text-xs font-bold outline-none">
         </div>
         <div class="md:col-span-2">
@@ -1053,7 +1034,6 @@ function populateSingleProductDropdown(selectEl) {
     }
 }
 
-// --- دالة حفظ أمر الشغل (المصححة لتعمل 100% مع السيستم) ---
 function saveFullOrder(e) {
     if (e) e.preventDefault();
     
@@ -1073,7 +1053,6 @@ function saveFullOrder(e) {
     const deliveryDate = document.getElementById('order-delivery-date')?.value || new Date().toISOString().split('T')[0];
     const paidAmount = parseFloat(document.getElementById('order-paid-amount')?.value) || 0;
 
-    // تجميع الأصناف من الصفوف الديناميكية بدقة
     const rows = document.querySelectorAll('.product-row');
     let productsSummaryText = '';
     let grandTotal = 0;
@@ -1090,10 +1069,14 @@ function saveFullOrder(e) {
             const unitPrice = prodObj ? (parseFloat(prodObj.price) || 0) : 0;
             
             let itemTotal = 0;
-            if (width > 0 && height > 0) {
-                itemTotal = ((width / 100) * (height / 100) * qty * unitPrice);
-            } else {
+            if (prodObj.priceType === 'unit') {
                 itemTotal = qty * unitPrice;
+            } else if (prodObj.priceType === 'minute') {
+                itemTotal = qty * unitPrice; // عدد الدقائق × سعر الدقيقة
+            } else if (prodObj.priceType === 'acrylic_facade') {
+                itemTotal = (width / 50) * (height / 100) * qty * unitPrice;
+            } else {
+                itemTotal = ((width * height) / 10000) * qty * unitPrice;
             }
 
             grandTotal += itemTotal;
@@ -1130,7 +1113,6 @@ function saveFullOrder(e) {
 
     saveData('fullOrdersList', fullOrdersList);
     
-    // تسجيل دفعة العربون في الخزينة تلقائياً لو تم إدخال مبلغ مدفوع
     if (paidAmount > 0 && (idx === undefined || idx === '')) {
         const transObj = {
             date: new Date().toISOString().split('T')[0],
@@ -1375,7 +1357,7 @@ function addQuoteItemRow() {
             <input type="number" oninput="calculateQuoteRowTotal('${rowId}')" placeholder="0" class="quote-height w-full px-2 py-1.5 border rounded text-xs outline-none">
         </div>
         <div class="md:col-span-1">
-            <label class="block text-[11px] font-bold text-gray-700 mb-1">العدد</label>
+            <label class="block text-[11px] font-bold text-gray-700 mb-1">العدد/الدقائق</label>
             <input type="number" value="1" min="1" oninput="calculateQuoteRowTotal('${rowId}')" class="quote-qty w-full px-2 py-1.5 border rounded text-xs font-bold outline-none">
         </div>
         <div class="md:col-span-2">
@@ -1398,7 +1380,6 @@ function addQuoteItemRow() {
     }
 }
 
-// دالة حفظ وعرض السعر مع الترقيم التلقائي المبتدئ من Q-1
 function saveAndPreviewQuotation() {
     const clientSelect = document.getElementById('quote-select-client');
     const client = clientSelect ? clientSelect.value : '';
@@ -1420,16 +1401,15 @@ function saveAndPreviewQuotation() {
             let areaFormatted = `${qty} قطعة`;
 
             if (prod.priceType === 'acrylic_facade') {
-                let heightMultiplier = Math.ceil(height / 50);
-                if (heightMultiplier < 1) heightMultiplier = 1;
-                const totalUnits = heightMultiplier * (width / 100) * qty;
+                const totalUnits = (width / 50) * (height / 100) * qty;
                 itemTotal = totalUnits * prod.price;
-                areaFormatted = `${totalUnits.toFixed(2)} م.احتسابي`;
+                areaFormatted = `${totalUnits.toFixed(2)} وحدة حسابية`;
             } else if (prod.priceType === 'unit') {
                 itemTotal = prod.price * qty;
-            } else if (prod.priceType === 'lm') {
-                itemTotal = (height / 100) * qty * prod.price;
-                areaFormatted = `${((height / 100) * qty).toFixed(2)} م.ط`;
+                areaFormatted = `${qty} قطعة`;
+            } else if (prod.priceType === 'minute') {
+                itemTotal = prod.price * qty;
+                areaFormatted = `${qty} دقيقة`;
             } else {
                 let totalArea = ((width * height) / 10000) * qty;
                 itemTotal = totalArea * prod.price;
@@ -1450,7 +1430,7 @@ function saveAndPreviewQuotation() {
     });
 
     if (items.length === 0) {
-        alert('برجاء اختيار خامة واحدة على الأقل وتحديد المقاسات والعدد بشكل صحيح');
+        alert('برجاء اختيار خامة واحدة على الأقل وتحديد البيانات بشكل صحيح');
         return;
     }
 
@@ -1464,7 +1444,6 @@ function saveAndPreviewQuotation() {
 
     quotationsList.unshift(activeQuoteData);
 
-    // إعادة الترقيم التسلسلي ليبدأ من Q-1 تلقائياً
     quotationsList.forEach((q, index) => {
         q.id = 'Q-' + (quotationsList.length - index);
     });
@@ -1475,7 +1454,6 @@ function saveAndPreviewQuotation() {
     showQuotationPreviewModal(activeQuoteData);
 }
 
-// دالة تعديل عرض السعر
 function editQuotation(index) {
     const q = quotationsList[index];
     if (!q) return;
@@ -1525,7 +1503,6 @@ function editQuotation(index) {
     renderAllTables();
 }
 
-// دالة الموافقة على عرض السعر وتحويله مباشرة لأمر شغل
 function approveQuotation(index) {
     const q = quotationsList[index];
     if (!q) return;
@@ -1555,12 +1532,10 @@ function calculateQuoteRowTotal(rowId) {
 
         if (prod.priceType === 'unit') {
             itemTotal = prod.price * qty;
-        } else if (prod.priceType === 'lm') {
-            itemTotal = (height / 100) * qty * prod.price;
+        } else if (prod.priceType === 'minute') {
+            itemTotal = prod.price * qty;
         } else if (prod.priceType === 'acrylic_facade') {
-            let heightMultiplier = Math.ceil(height / 50);
-            if (heightMultiplier < 1) heightMultiplier = 1;
-            itemTotal = heightMultiplier * (width / 100) * qty * prod.price;
+            itemTotal = (width / 50) * (height / 100) * qty * prod.price;
         } else {
             const totalSqm = ((width * height) / 10000) * qty;
             itemTotal = totalSqm * prod.price;
@@ -1640,6 +1615,7 @@ function renderSalesTable() {
     if (statCount) statCount.innerText = quotationsList ? quotationsList.length : 0;
     if (statDate) statDate.innerText = (quotationsList && quotationsList.length > 0) ? quotationsList[0].date : '—';
 }
+
 function deleteQuotation(index) {
     if (!quotationsList[index]) return;
     const q = quotationsList[index];
@@ -1803,7 +1779,6 @@ function openFinanceTransactionForm() {
     switchTab('finance-form');
 }
 
-// 1. تعبئة قائمة جميع المشاريع في نموذج الحركة المالية (تعرض كل المشاريع المسجلة)
 function populateFinanceDropdowns() {
     const projSelect = document.getElementById('trans-project');
     if (projSelect) {
@@ -1818,23 +1793,20 @@ function populateFinanceDropdowns() {
         orderSelect.innerHTML = '<option value="">-- اختر أمر الشغل --</option>';
     }
 }
-// 2. تحديث قائمة أوامر الشغل الخاصة بالمشروع المختار وحساب المجموع تلقائياً
+
 function updateFinanceProjectsDropdown() {
     const projName = document.getElementById('trans-project').value;
     const orderSelect = document.getElementById('trans-order');
 
     if (!orderSelect) return;
     
-    // ربط حدث التغيير لقائمة أوامر الشغل لتحديث الخانة تلقائياً
     orderSelect.onchange = updateFinanceAccountDisplay;
     orderSelect.innerHTML = '<option value="">-- اختر أمر الشغل --</option>';
 
     const filteredOrders = fullOrdersList.filter(o => o.project === projName);
     filteredOrders.forEach(o => {
-        // فحص شامل لكل احتمالات أسماء الإجمالي لضمان عدم ظهور undefined
         let orderTotal = parseFloat(o.totalAmount || o.totalPrice || o.total || 0);
         
-        // لو الإجمالي ما زال صفراً، نبحث داخلياً لو فيه تفاصيل منتجات ونحسبها
         if (orderTotal === 0 && o.productsData && Array.isArray(o.productsData)) {
             o.productsData.forEach(item => {
                 let pObj = productsList.find(p => p.name === item.name);
@@ -1847,22 +1819,17 @@ function updateFinanceProjectsDropdown() {
         orderSelect.innerHTML += `<option value="${o.code}">${o.code} - الإجمالي: ${orderTotal.toLocaleString()} ج.م</option>`;
     });
 
-    // استدعاء دالة تحديث خانة الحساب فوراً عند تغيير المشروع
     updateFinanceAccountDisplay();
 }
 
-
-// دالة مسؤولة عن قراءة القيمة المحددة وضعها في خانة حساب المشروع كامل
 function updateFinanceAccountDisplay() {
     const projSelect = document.getElementById('trans-project');
     const orderSelect = document.getElementById('trans-order');
     
-    // البحث المباشر عن كل الحقول والباكسات الزرقاء في صفحة الحركة المالية
     const allDisplayBoxes = document.querySelectorAll('#tab-finance-form input, #tab-finance-form span, #tab-finance-form div, #page-finance-form input, #page-finance-form span, #page-finance-form div');
     
     let targetElement = null;
     allDisplayBoxes.forEach(el => {
-        // بنبحث عن العنصر اللي جواه "ج.م" أو "0.00" عشان نمسكه بالظبط
         if (el.textContent.includes('ج.م') || el.textContent.includes('0.00') || (el.value && el.value.includes('ج.م'))) {
             targetElement = el;
         }
@@ -1872,14 +1839,12 @@ function updateFinanceAccountDisplay() {
 
     let calculatedTotal = 0;
 
-    // 1. حساب إجمالي أمر الشغل لو مختار أمر
     if (orderSelect && orderSelect.value) {
         const selectedOrder = fullOrdersList.find(o => o.code === orderSelect.value);
         if (selectedOrder) {
             calculatedTotal = parseFloat(selectedOrder.totalAmount || selectedOrder.totalPrice || selectedOrder.total || 0);
         }
     } 
-    // 2. أو حساب إجمالي المشروع كله لو مختار مشروع فقط
     else if (projSelect && projSelect.value) {
         const projOrders = fullOrdersList.filter(o => o.project === projSelect.value);
         projOrders.forEach(o => {
@@ -1889,13 +1854,13 @@ function updateFinanceAccountDisplay() {
 
     const formattedText = calculatedTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م';
 
-    // تحديث العنصر فوراً
     if (targetElement.tagName === 'INPUT') {
         targetElement.value = formattedText;
     } else {
         targetElement.textContent = formattedText;
     }
 }
+
 function editTransaction(index) {
     if (!hasPerm('editFinance')) { alert('ليس لديك صلاحية لتعديل الحركات المالية!'); return; }
     const t = financeTransactions[index];
@@ -1993,7 +1958,7 @@ function deleteTransaction(index) {
 
 // --- العرض الموحد لجميع الجداول والداتا ---
 function renderAllTables() {
-const empTbody = document.getElementById('employees-table-body');
+    const empTbody = document.getElementById('employees-table-body');
     if (empTbody) {
         empTbody.innerHTML = '';
         for (let ph in usersDatabase) {
@@ -2025,7 +1990,7 @@ const empTbody = document.getElementById('employees-table-body');
     renderTrashBinTable();
     if (typeof renderSalesTable === 'function') renderSalesTable();
 
-const clientTbody = document.getElementById('clients-table-body');
+    const clientTbody = document.getElementById('clients-table-body');
     if (clientTbody) {
         clientTbody.innerHTML = '';
         clientsList.forEach((c, idx) => {
@@ -2055,11 +2020,16 @@ const clientTbody = document.getElementById('clients-table-body');
         const items = productsList || [];
         
         items.forEach((item, idx) => {
+            let pTypeName = 'بالمتر المربع';
+            if(item.priceType === 'acrylic_facade') pTypeName = 'حروف';
+            else if(item.priceType === 'minute') pTypeName = 'بالدقيقة';
+            else if(item.priceType === 'unit') pTypeName = 'بالقطعة';
+
             prodTbody.innerHTML += `
                 <tr class="hover:bg-gray-50 text-center border-b">
                     <td class="p-3 font-bold text-gray-800 text-right">${item.name || item.itemName || '—'}</td>
                     <td class="p-3"><span class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">${item.category || 'عام'}</span></td>
-                    <td class="p-3 font-bold text-amber-600">${item.unit || item.calcType || 'بالقطعة'}</td>
+                    <td class="p-3 font-bold text-amber-600">${pTypeName}</td>
                     <td class="p-3 font-bold text-emerald-600 font-mono">${(parseFloat(item.sellPrice || item.price) || 0).toLocaleString()} ج.م</td>
                     <td class="p-3 font-bold text-red-500 font-mono">${(parseFloat(item.costPrice || item.cost) || 0).toLocaleString()} ج.م</td>
                     <td class="p-3 text-center space-x-1 space-x-reverse">
@@ -2071,7 +2041,7 @@ const clientTbody = document.getElementById('clients-table-body');
         });
     }
     
-const invTbody = document.getElementById('inventory-table-body');
+    const invTbody = document.getElementById('inventory-table-body');
     if (invTbody) {
         invTbody.innerHTML = '';
         const items = inventoryList || [];
@@ -2105,6 +2075,7 @@ const invTbody = document.getElementById('inventory-table-body');
             });
         }
     }
+
     const projTbody = document.getElementById('projects-table-body');
     if (projTbody) {
         projTbody.innerHTML = '';
@@ -2276,7 +2247,6 @@ function applyUserPermissions() {
 
     const user = usersDatabase[currentPhone];
 
-    // لو المستخدم أدمن النظام الرئيسي، تظهر له كل الأقسام بالكامل
     if (user.role === 'admin') {
         const allNavs = ['home', 'users', 'clients', 'client-ledger', 'products', 'inventory', 'projects', 'orders', 'sales', 'finance', 'trash-bin'];
         allNavs.forEach(nav => {
@@ -2289,23 +2259,19 @@ function applyUserPermissions() {
         return;
     }
 
-    // لو موظف عادي، نقرأ صلاحياته بدقة ونظهر أو نخفي الأقسام بناءً عليها
     const p = user.perms || {};
 
-    // الرئيسية تظهر دائماً للموظف
     toggleNavVisibility('nav-home', true);
-    
-    // ربط الصلاحيات بأزرار القائمة الجانبية (Sidebar Navs)
     toggleNavVisibility('nav-users', !!p.viewUsers);
     toggleNavVisibility('nav-clients', !!p.viewClients);
     toggleNavVisibility('nav-client-ledger', !!p.viewClientLedger);
     toggleNavVisibility('nav-products', !!p.viewProducts);
-    toggleNavVisibility('nav-inventory', !!p.viewProducts); // المخازن مرتبطة بصلاحية المنتجات أو الجرد
+    toggleNavVisibility('nav-inventory', !!p.viewProducts);
     toggleNavVisibility('nav-projects', !!p.viewProjects);
     toggleNavVisibility('nav-orders', !!p.viewOrders);
     toggleNavVisibility('nav-sales', !!p.viewSales);
     toggleNavVisibility('nav-finance', !!p.viewFinance);
-    toggleNavVisibility('nav-trash-bin', user.role === 'admin'); // المهملات للأدمن فقط
+    toggleNavVisibility('nav-trash-bin', user.role === 'admin');
 
     applyHomeStatsPermissions();
 }
@@ -2369,7 +2335,6 @@ document.addEventListener('DOMContentLoaded', function() {
         localStorage.removeItem('currentUserPhone');
         if (loginSec) loginSec.classList.remove('hidden');
         if (dashSec) dashSec.classList.add('hidden');
-        // شاشة تسجيل الدخول العادية دائماً؛ إنشاء الحسابات من إدارة الموظفين بعد دخول المدير.
         document.getElementById('login-form')?.classList.remove('hidden');
     }
 });
