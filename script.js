@@ -2362,30 +2362,6 @@ function executeWindowPrint(htmlContent) {
         iframe.contentWindow.print();
     }, 250);
 }
-
-document.addEventListener('DOMContentLoaded', function() {
-    const loggedUserPhone = localStorage.getItem('currentUserPhone');
-    const loginSec = document.getElementById('login-section');
-    const dashSec = document.getElementById('dashboard-section');
-    usersDatabase = loadData('usersDatabase', {});
-
-    renderAllTables();
-    populateOrderDropdowns();
-    populateCategoriesDropdown();
-
-    if (loggedUserPhone && usersDatabase[loggedUserPhone]) {
-        currentUserPhone = loggedUserPhone;
-        currentUserRole = usersDatabase[loggedUserPhone].role || 'engineer';
-        if (loginSec) loginSec.classList.add('hidden');
-        if (dashSec) dashSec.classList.remove('hidden');
-        updateHeaderUserInfo();
-        applyUserPermissions();
-        switchTab('home');
-    } else {
-        localStorage.removeItem('currentUserPhone');
-        if (loginSec) loginSec.classList.remove('hidden');
-        if (dashSec) dashSec.classList.add('hidden');
-        // شاشة تسجيل الدخول العادية دائماً؛ إنشاء الحسابات من إدارة الموظفين بعد دخول المدير.
 document.addEventListener('DOMContentLoaded', function() {
     const loggedUserPhone = localStorage.getItem('currentUserPhone');
     const loginSec = document.getElementById('login-section');
@@ -2393,7 +2369,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     usersDatabase = loadData('usersDatabase', {});
 
-    // إضافة الحسابات الأساسية تلقائياً لتظهر على جميع الأجهزة
+    // حقن الحسابات الأساسية لضمان عملها على أي جهاز
     const defaultUsers = {
         '01063292810': { name: 'م/ يوسف محمد', role: 'admin', pass: '252503', title: 'مدير النظام' },
         '01125291114': { name: 'م/ خالد السيد', role: 'admin', pass: '123456', title: 'مدير نظام' },
@@ -2411,22 +2387,20 @@ document.addEventListener('DOMContentLoaded', function() {
         saveData('usersDatabase', usersDatabase);
     }
 
-    renderAllTables();
-    populateOrderDropdowns();
-    populateCategoriesDropdown();
+    if (typeof renderAllTables === 'function') renderAllTables();
+    if (typeof populateOrderDropdowns === 'function') populateOrderDropdowns();
 
     if (loggedUserPhone && usersDatabase[loggedUserPhone]) {
         currentUserPhone = loggedUserPhone;
         currentUserRole = usersDatabase[loggedUserPhone].role || 'engineer';
         if (loginSec) loginSec.classList.add('hidden');
         if (dashSec) dashSec.classList.remove('hidden');
-        updateHeaderUserInfo();
-        applyUserPermissions();
-        switchTab('home');
+        if (typeof updateHeaderUserInfo === 'function') updateHeaderUserInfo();
+        if (typeof applyUserPermissions === 'function') applyUserPermissions();
+        if (typeof switchTab === 'function') switchTab('home');
     } else {
         localStorage.removeItem('currentUserPhone');
         if (loginSec) loginSec.classList.remove('hidden');
         if (dashSec) dashSec.classList.add('hidden');
-        document.getElementById('login-form')?.classList.remove('hidden');
     }
 });
