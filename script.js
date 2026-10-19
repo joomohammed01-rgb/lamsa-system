@@ -1207,8 +1207,22 @@ function confirmDeleteOrderWithReason() {
     const o = fullOrdersList[targetOrderIndexToDelete];
     sendToTrash('أمر شغل', o.code, o.client, o.project, reason, getCurrentUserName(), o);
 
-    fullOrdersList.splice(targetOrderIndexToDelete, 1);
-    saveData('fullOrdersList', fullOrdersList);
+const deletedOrderIndex = targetOrderIndexToDelete;
+const deletedOrderCode = String(o.code || '');
+const deletedOrderNumber = parseInt(deletedOrderCode.replace('ORD - ', ''), 10);
+
+fullOrdersList.splice(deletedOrderIndex, 1);
+
+if (
+    !isNaN(deletedOrderNumber) &&
+    deletedOrderIndex === 0 &&
+    !fullOrdersList.some(order => {
+        return parseInt(String(order.code || '').replace('ORD - ', ''), 10) > deletedOrderNumber;
+    })
+) {
+    orderAutoCounter = deletedOrderNumber;
+    saveData('orderAutoCounter', orderAutoCounter);
+}    saveData('fullOrdersList', fullOrdersList);
     closeDeleteOrderModal();
     renderAllTables();
 }
@@ -2197,12 +2211,14 @@ const invTbody = document.getElementById('inventory-table-body');
     const finNetEl = document.getElementById('finance-net-balance');
     const finDuesEl = document.getElementById('finance-total-dues');
     const statFinEl = document.getElementById('stat-finance-total');
+    const homeDuesEl = document.getElementById('stat-home-total-dues');
 
     if (finInEl) finInEl.textContent = totalIn.toLocaleString() + ' ج.م';
     if (finOutEl) finOutEl.textContent = totalOut.toLocaleString() + ' ج.م';
     if (finNetEl) finNetEl.textContent = (totalIn - totalOut).toLocaleString() + ' ج.م';
     if (finDuesEl) finDuesEl.textContent = totalDues.toLocaleString() + ' ج.م';
     if (statFinEl) statFinEl.textContent = (totalIn - totalOut).toLocaleString() + ' ج.م';
+    if (homeDuesEl) homeDuesEl.textContent = totalDues.toLocaleString() + ' ج.م';
 
     filterProjectsTable();
     filterOrdersTable();
