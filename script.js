@@ -14,40 +14,24 @@ let currentUserPhone = '0106392810';
 let projectAutoCounter = loadData('projectAutoCounter', 1);
 let orderAutoCounter = loadData('orderAutoCounter', 1);
 let quoteAutoCounter = loadData('quoteAutoCounter', 1);
+// قاعدة بيانات المستخدمين (حسابك الأساسي فقط وبشكل مخفي وسري)
 let usersDatabase = loadData('usersDatabase', {
-    '0106392810': { 
-        pass: '123456', 
-        role: 'admin', 
-        name: 'م/ يوسف محمد', 
-        title: 'مدير النظام',
+    '01063292810': {
+        pass: '252503',
+        role: 'admin',
+        name: 'يوسف أحمد',
+        title: 'المدير العام',
         salary: 15000,
-        perms: { editOrder: true, deleteOrder: true, editProject: true, deleteProject: true, editClient: true, deleteClient: true, editProduct: true, deleteProduct: true, editFinance: true, deleteFinance: true, editUsers: true, deleteUsers: true }
+        perms: { editUser: true, deleteOrder: true, editProject: true, deleteProject: true, editClient: true, deleteClient: true, editProduct: true, deleteProduct: true, editInvoice: true, deleteFinance: true, editUsers: true, deleteUsers: true }
     }
 });
 
-let clientsList = loadData('clientsList', [
-    { name: 'شركة رواد مصر', phone: '01011223344', email: 'info@rawad.com', address: 'القاهرة - الدقي', type: 'A', discount: 0 },
-    { name: 'روم شرم', phone: '01233445566', email: '', address: 'شرم الشيخ', type: 'B', discount: 0 }
-]);
-
-let categoriesList = loadData('categoriesList', ['طباعة وأوت دور', 'لافتات وشاشات', 'مطبوعات ورقية']);
-
-let productsList = loadData('productsList', [
-    { name: 'أكريليك 3 مم شفاف', category: 'لافتات وشاشات', priceType: 'acrylic_facade', price: 6000, cost: 3800 },
-    { name: 'بنر إيكوسولفنت 380 جرام', category: 'طباعة وأوت دور', priceType: 'sqm', price: 350, cost: 180 },
-    { name: 'رول أب ستاند (كامل)', category: 'طباعة وأوت دور', priceType: 'unit', price: 1200, cost: 750 }
-]);
-
-let inventoryList = loadData('inventoryList', [
-    { name: 'أكريليك 3 مم شفاف', category: 'لافتات وشاشات', qty: 25, unit: 'م²', cost: 3800, price: 6000, priceType: 'acrylic_facade' },
-    { name: 'بنر إيكوسولفنت 380 جرام', category: 'طباعة وأوت دور', qty: 150, unit: 'م²', cost: 180, price: 350, priceType: 'sqm' }
-]);
-
-let projectsList = loadData('projectsList', [
-    { client: 'روم شرم', name: 'تعديل بايلون موفنبيك', code: 'PRJ-1', engineer: 'م/ أحمد محمود', ownerPhone: '01233445566' },
-    { client: 'شركة رواد مصر', name: 'واجهة فرع الدقي', code: 'PRJ-2', engineer: 'م/ يوسف محمد', ownerPhone: '01011223344' }
-]);
-
+// قوائم النظام (فارغة تماماً بدون أي بيانات تجريبية)
+let clientList = loadData('clientList', []);
+let categoriesList = loadData('categoriesList', ['مطبوعات ورقية', 'يافطات وإعلانات', 'طباعة وأوت دور']);
+let productList = loadData('productList', []);
+let inventoryList = loadData('inventoryList', []);
+let projectList = loadData('projectList', []);
 let fullOrdersList = loadData('fullOrdersList', []);
 let quotationsList = loadData('quotationsList', []);
 let financeTransactions = loadData('financeTransactions', [
