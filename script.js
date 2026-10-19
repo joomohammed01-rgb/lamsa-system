@@ -2386,6 +2386,47 @@ document.addEventListener('DOMContentLoaded', function() {
         if (loginSec) loginSec.classList.remove('hidden');
         if (dashSec) dashSec.classList.add('hidden');
         // شاشة تسجيل الدخول العادية دائماً؛ إنشاء الحسابات من إدارة الموظفين بعد دخول المدير.
+document.addEventListener('DOMContentLoaded', function() {
+    const loggedUserPhone = localStorage.getItem('currentUserPhone');
+    const loginSec = document.getElementById('login-section');
+    const dashSec = document.getElementById('dashboard-section');
+    
+    usersDatabase = loadData('usersDatabase', {});
+
+    // إضافة الحسابات الأساسية تلقائياً لتظهر على جميع الأجهزة
+    const defaultUsers = {
+        '01063292810': { name: 'م/ يوسف محمد', role: 'admin', pass: '252503', title: 'مدير النظام' },
+        '01125291114': { name: 'م/ خالد السيد', role: 'admin', pass: '123456', title: 'مدير نظام' },
+        '01011521619': { name: 'عبد الرحمن صالح', role: 'engineer', pass: '123456', title: 'مهندس تشغيل' }
+    };
+
+    let updated = false;
+    for (let ph in defaultUsers) {
+        if (!usersDatabase[ph]) {
+            usersDatabase[ph] = defaultUsers[ph];
+            updated = true;
+        }
+    }
+    if (updated) {
+        saveData('usersDatabase', usersDatabase);
+    }
+
+    renderAllTables();
+    populateOrderDropdowns();
+    populateCategoriesDropdown();
+
+    if (loggedUserPhone && usersDatabase[loggedUserPhone]) {
+        currentUserPhone = loggedUserPhone;
+        currentUserRole = usersDatabase[loggedUserPhone].role || 'engineer';
+        if (loginSec) loginSec.classList.add('hidden');
+        if (dashSec) dashSec.classList.remove('hidden');
+        updateHeaderUserInfo();
+        applyUserPermissions();
+        switchTab('home');
+    } else {
+        localStorage.removeItem('currentUserPhone');
+        if (loginSec) loginSec.classList.remove('hidden');
+        if (dashSec) dashSec.classList.add('hidden');
         document.getElementById('login-form')?.classList.remove('hidden');
     }
 });
