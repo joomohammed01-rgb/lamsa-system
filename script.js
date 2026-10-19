@@ -8,22 +8,6 @@ function saveData(key, val) {
     localStorage.setItem('lamsa_' + key, JSON.stringify(val));
 }
 
-// تحديد رقم أمر الشغل التالي من أعلى رقم موجود فعلياً.
-// بهذا الشكل، لو اتحذف آخر أمر (مثلاً ORD - 25)، الرقم 25 يرجع متاحاً؛
-// أما لو اتحذف أمر أقدم وما زالت أرقام أحدث موجودة، فالترقيم يكمل بعد الأعلى.
-function getNextOrderNumber() {
-    const highestExistingNumber = (Array.isArray(fullOrdersList) ? fullOrdersList : [])
-        .reduce((highest, order) => {
-            const match = String(order && order.code || '').match(/^\s*ORD\s*-\s*(\d+)\s*$/i);
-            return match ? Math.max(highest, parseInt(match[1], 10)) : highest;
-        }, 0);
-
-    if (highestExistingNumber > 0) return highestExistingNumber + 1;
-
-    // للتوافق مع النسخ القديمة عند عدم وجود أوامر حالياً.
-    return Math.max(1, parseInt(loadData('orderAutoCounter', 1), 10) || 1);
-}
-
 let currentUserRole = 'engineer';
 let currentUserPhone = '';
 
@@ -78,16 +62,9 @@ function getCurrentUserName() {
 }
 
 function handleLogin(event) {
-    if (event) event.preventDefault();
-    
-    // سحب أحدث بيانات الموظفين المسجلة في الذاكرة المحلية
-    usersDatabase = loadData('usersDatabase', {});
-
-    const phoneInput = document.getElementById('username');
-    const passInput = document.getElementById('password');
-
-    const phone = phoneInput ? phoneInput.value.trim() : '';
-    const pass = passInput ? passInput.value.trim() : '';
+    event.preventDefault();
+    const phone = document.getElementById('username').value.trim();
+    const pass = document.getElementById('password').value.trim();
 
     const user = usersDatabase[phone];
     if (!user || user.pass !== pass) {
@@ -95,8 +72,6 @@ function handleLogin(event) {
         return;
     }
 
-    currentUserPhone = phone;
-    currentUserRole = user.role || 'engineer';
     localStorage.setItem('currentUserPhone', phone);
 
     const nameEl = document.getElementById('display-username');
@@ -115,11 +90,27 @@ function handleLogin(event) {
     switchTab('home');
 }
 
+function hasPerm(permKey) {
+    if (currentUserRole === 'admin') return true;
+    const u = usersDatabase[currentUserPhone];
+    return u && u.perms && u.perms[permKey];
+}
+
 function switchTab(pageId) {
-    // إظهار الصفحة المطلوبة وإخفاء باقي الصفحات.
-    document.querySelectorAll('.tab-page').forEach(page => page.classList.add('hidden'));
-    const targetPage = document.getElementById('page-' + pageId);
-    if (targetPage) targetPage.classList.remove('hidden');
+    // 1. إخفاء كل صفحات الـ tab والـ page الموجودة في النظام
+    const allPages = document.querySelectorAll('.tab-page');
+    allPages.forEach(p => p.classList.add('hidden'));
+
+    // 2. البحث عن الصفحة المستهدفة سواء كانت تبدأ بـ tab- أو page- وعرضها فوراً
+    let target = document.getElementById('tab-' + pageId) || 
+                 document.getElementById('page-' + pageId) || 
+                 document.getElementById(pageId);
+
+    if (target) {
+        target.classList.remove('hidden');
+    } else {
+        console.warn('الصفحة غير موجودة:', pageId);
+    }
 
     // 3. تحديث القائمة الجانبية (Sidebar Active State)
     const navs = ['home', 'users', 'clients', 'products', 'inventory', 'projects', 'orders', 'sales', 'finance', 'client-ledger', 'trash-bin'];
@@ -981,7 +972,7 @@ function filterProjectsTable() {
 function openOrderPage() {
     document.getElementById('edit-order-index').value = '';
     document.getElementById('order-delivery-date').value = new Date().toISOString().split('T')[0];
-    const currentCounter = getNextOrderNumber();
+    let currentCounter = parseInt(localStorage.getItem('orderAutoCounter')) || 1;
     const codeInput = document.getElementById('order-code-input');
     if (codeInput) codeInput.value = `ORD - ${currentCounter}`;
 
@@ -1112,7 +1103,8 @@ function saveFullOrder(e) {
 
     let orderCode = document.getElementById('order-code-input')?.value;
     if (!orderCode) {
-        orderCode = `ORD - ${getNextOrderNumber()}`;
+        let currentCounter = parseInt(localStorage.getItem('orderAutoCounter')) || (fullOrdersList.length + 1);
+        orderCode = `ORD - ${currentCounter}`;
     }
 
     const orderData = {
@@ -1132,8 +1124,8 @@ function saveFullOrder(e) {
         fullOrdersList[idx] = orderData;
     } else {
         fullOrdersList.unshift(orderData);
-        // حفظ العداد بنفس مفتاح التخزين المستخدم في بقية البرنامج.
-        saveData('orderAutoCounter', getNextOrderNumber());
+        let currentCounter = parseInt(localStorage.getItem('orderAutoCounter')) || (fullOrdersList.length + 1);
+        localStorage.setItem('orderAutoCounter', currentCounter + 1);
     }
 
     saveData('fullOrdersList', fullOrdersList);
@@ -1216,19 +1208,21 @@ function confirmDeleteOrderWithReason() {
     sendToTrash('أمر شغل', o.code, o.client, o.project, reason, getCurrentUserName(), o);
 
 const deletedOrderIndex = targetOrderIndexToDelete;
-const deletedOrderNumber = parseInt(String(o.code || '').replace(/^\s*ORD\s*-\s*/i, ''), 10);
+const deletedOrderCode = String(o.code || '');
+const deletedOrderNumber = parseInt(deletedOrderCode.replace('ORD - ', ''), 10);
+
 fullOrdersList.splice(deletedOrderIndex, 1);
 
-// أعد حساب الرقم التالي بعد الحذف؛ لو المحذوف كان أعلى رقم، سيُستخدم مجدداً.
-const highestRemainingNumber = fullOrdersList.reduce((highest, order) => {
-    const match = String(order && order.code || '').match(/^\s*ORD\s*-\s*(\d+)\s*$/i);
-    return match ? Math.max(highest, parseInt(match[1], 10)) : highest;
-}, 0);
-orderAutoCounter = highestRemainingNumber > 0
-    ? highestRemainingNumber + 1
-    : (Number.isInteger(deletedOrderNumber) && deletedOrderNumber > 0 ? deletedOrderNumber : 1);
-saveData('orderAutoCounter', orderAutoCounter);
-saveData('fullOrdersList', fullOrdersList);
+if (
+    !isNaN(deletedOrderNumber) &&
+    deletedOrderIndex === 0 &&
+    !fullOrdersList.some(order => {
+        return parseInt(String(order.code || '').replace('ORD - ', ''), 10) > deletedOrderNumber;
+    })
+) {
+    orderAutoCounter = deletedOrderNumber;
+    saveData('orderAutoCounter', orderAutoCounter);
+}    saveData('fullOrdersList', fullOrdersList);
     closeDeleteOrderModal();
     renderAllTables();
 }
@@ -2368,27 +2362,30 @@ function executeWindowPrint(htmlContent) {
         iframe.contentWindow.print();
     }, 250);
 }
+
 document.addEventListener('DOMContentLoaded', function() {
     const loggedUserPhone = localStorage.getItem('currentUserPhone');
     const loginSec = document.getElementById('login-section');
     const dashSec = document.getElementById('dashboard-section');
-    
     usersDatabase = loadData('usersDatabase', {});
 
-    if (typeof renderAllTables === 'function') renderAllTables();
-    if (typeof populateOrderDropdowns === 'function') populateOrderDropdowns();
+    renderAllTables();
+    populateOrderDropdowns();
+    populateCategoriesDropdown();
 
     if (loggedUserPhone && usersDatabase[loggedUserPhone]) {
         currentUserPhone = loggedUserPhone;
         currentUserRole = usersDatabase[loggedUserPhone].role || 'engineer';
         if (loginSec) loginSec.classList.add('hidden');
         if (dashSec) dashSec.classList.remove('hidden');
-        if (typeof updateHeaderUserInfo === 'function') updateHeaderUserInfo();
-        if (typeof applyUserPermissions === 'function') applyUserPermissions();
-        if (typeof switchTab === 'function') switchTab('home');
+        updateHeaderUserInfo();
+        applyUserPermissions();
+        switchTab('home');
     } else {
         localStorage.removeItem('currentUserPhone');
-        if (loginSec) loginSec.classList.add('hidden');
+        if (loginSec) loginSec.classList.remove('hidden');
         if (dashSec) dashSec.classList.add('hidden');
+        // شاشة تسجيل الدخول العادية دائماً؛ إنشاء الحسابات من إدارة الموظفين بعد دخول المدير.
+        document.getElementById('login-form')?.classList.remove('hidden');
     }
 });
