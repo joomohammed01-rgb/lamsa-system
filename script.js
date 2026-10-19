@@ -292,63 +292,7 @@ function saveEmployee(e) {
     if (typeof switchTab === 'function') switchTab('users');
 }
 
-// إنشاء حساب المدير الأول عند تشغيل نسخة جديدة بدون بيانات دخول محفوظة
-function createFirstAdmin(event) {
-    if (event) event.preventDefault();
-    usersDatabase = loadData('usersDatabase', {});
-    if (Object.keys(usersDatabase).length > 0) {
-        alert('يوجد حساب مسجل بالفعل. سجّل الدخول باستخدام بيانات الحساب.');
-        showLoginForm();
-        return;
-    }
-    const name = document.getElementById('setup-admin-name')?.value.trim() || '';
-    const phone = document.getElementById('setup-admin-phone')?.value.trim() || '';
-    const pass = document.getElementById('setup-admin-pass')?.value || '';
-    const confirmPass = document.getElementById('setup-admin-pass-confirm')?.value || '';
-    if (!name || !phone || !pass) {
-        alert('اكتب الاسم ورقم الهاتف وكلمة المرور.');
-        return;
-    }
-    if (pass.length < 6) {
-        alert('كلمة المرور لازم تكون 6 أحرف أو أرقام على الأقل.');
-        return;
-    }
-    if (pass !== confirmPass) {
-        alert('كلمتا المرور غير متطابقتين.');
-        return;
-    }
-    usersDatabase[phone] = {
-        pass, role: 'admin', name, title: 'مدير النظام', salary: 0,
-        perms: { viewHome: true, viewUsers: true, editUsers: true, deleteUsers: true,
-            viewClients: true, editClient: true, deleteClient: true, viewClientLedger: true,
-            viewProducts: true, editProduct: true, deleteProduct: true, viewInventory: true,
-            editInventory: true, deleteInventory: true, viewProjects: true, editProject: true,
-            deleteProject: true, viewOrders: true, editOrder: true, deleteOrder: true,
-            viewSales: true, editSales: true, deleteSales: true, viewFinance: true,
-            editFinance: true, deleteFinance: true, viewTrash: true, deleteTrash: true }
-    };
-    saveData('usersDatabase', usersDatabase);
-    currentUserPhone = phone;
-    currentUserRole = 'admin';
-    localStorage.setItem('currentUserPhone', phone);
-    const nameEl = document.getElementById('display-username');
-    const roleEl = document.getElementById('display-role');
-    if (nameEl) nameEl.textContent = name;
-    if (roleEl) roleEl.textContent = 'مدير النظام';
-    document.getElementById('setup-admin-section')?.classList.add('hidden');
-    document.getElementById('login-section')?.classList.add('hidden');
-    document.getElementById('dashboard-section')?.classList.remove('hidden');
-    renderAllTables();
-    populateOrderDropdowns();
-    populateCategoriesDropdown();
-    applyUserPermissions();
-    switchTab('home');
-}
 
-function showLoginForm() {
-    document.getElementById('setup-admin-section')?.classList.add('hidden');
-    document.getElementById('login-form')?.classList.remove('hidden');
-}
 
 // --- دالة تسجيل الدخول المصححة ---
 function handleLogin(event) {
@@ -2425,12 +2369,7 @@ document.addEventListener('DOMContentLoaded', function() {
         localStorage.removeItem('currentUserPhone');
         if (loginSec) loginSec.classList.remove('hidden');
         if (dashSec) dashSec.classList.add('hidden');
-        if (Object.keys(usersDatabase).length === 0) {
-            document.getElementById('login-form')?.classList.add('hidden');
-            document.getElementById('setup-admin-section')?.classList.remove('hidden');
-        } else {
-            document.getElementById('login-form')?.classList.remove('hidden');
-            document.getElementById('setup-admin-section')?.classList.add('hidden');
-        }
+        // شاشة تسجيل الدخول العادية دائماً؛ إنشاء الحسابات من إدارة الموظفين بعد دخول المدير.
+        document.getElementById('login-form')?.classList.remove('hidden');
     }
 });
