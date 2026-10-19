@@ -1,11 +1,44 @@
-// --- إدارة التخزين المحلي الحقيقي (Persistent Storage) ---
-function loadData(key, defaultVal) {
-    const saved = localStorage.getItem('lamsa_' + key);
-    return saved ? JSON.parse(saved) : defaultVal;
+// 1. تهيئة الاتصال السحابي بـ Supabase
+const SUPABASE_URL = "https://lhyfzbdzppcbwipqdzkv.supabase.co";
+const SUPABASE_KEY = "sb_publishable_vpk_حط_المفتاح_هنا_كامل"; // استبدل هذا النص بالـ Key الصحيح من لوحة تحكم Supabase
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// 2. دالة تحميل البيانات سحابياً (مع الاحتفاظ بنسخة محلية كاحتياط)
+async function loadData(key, defaultValue) {
+  try {
+    const { data, error } = await supabase
+      .from('lamsa_settings')
+      .select('value')
+      .eq('key', key)
+      .single();
+
+    if (data && data.value) {
+      const parsed = JSON.parse(data.value);
+      localStorage.setItem('lamsa_' + key, data.value);
+      return parsed;
+    }
+  } catch (err) {
+    console.log("الاعتماد على التخزين المحلي مؤقتاً لـ:", key);
+  }
+  
+  const saved = localStorage.getItem('lamsa_' + key);
+  return saved ? JSON.parse(saved) : defaultValue;
 }
 
-function saveData(key, val) {
-    localStorage.setItem('lamsa_' + key, JSON.stringify(val));
+// 3. دالة حفظ البيانات سحابياً ومحلياً في نفس اللحظة
+async function saveData(key, val) {
+  localStorage.setItem('lamsa_' + key, JSON.stringify(val));
+  
+  try {
+    const { error } = await supabase
+      .from('lamsa_settings')
+      .upsert({ key: key, value: JSON.stringify(val) });
+      
+    if (error) console.error("خطأ في المزامنة السحابية:", error);
+  } catch (err) {
+    console.error("فشل الاتصال بـ Supabase أثناء الحفظ:", err);
+  }
 }
 
 let currentUserRole = 'engineer';
