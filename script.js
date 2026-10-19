@@ -61,7 +61,38 @@ async function initApp() {
   if (typeof updateHeaderUserInfo === "function") updateHeaderUserInfo();
   if (typeof renderAll === "function") renderAll();
 }
+// دالة رفع البيانات والحسابات القديمة تلقائياً إلى Supabase
+async function syncOldDataToCloud() {
+  const keysToSync = [
+    'projectAutoCounter',
+    'orderAutoCounter',
+    'quoteAutoCounter',
+    'usersDatabase',
+    'clientsList',
+    'categoriesList',
+    'productsList',
+    'inventoryList',
+    'projectsList',
+    'allOrdersList',
+    'quotationsList',
+    'financeTransactions',
+    'trashBinList',
+    'payrollList'
+  ];
 
+  for (const key of keysToSync) {
+    const localVal = localStorage.getItem('lamsa_' + key);
+    if (localVal) {
+      try {
+        const parsed = JSON.parse(localVal);
+        await saveData(key, parsed);
+        console.log(`تم رفع البيانات القديمة للمفتاح: ${key}`);
+      } catch (e) {
+        console.error(`خطأ في رفع المفتاح: ${key}`, e);
+      }
+    }
+  }
+}
 // تشغيل التحميل بمجرد فتح الصفحة
 document.addEventListener("DOMContentLoaded", initApp);
 
