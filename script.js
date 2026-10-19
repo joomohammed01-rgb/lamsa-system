@@ -1,6 +1,6 @@
 // 1. تهيئة الاتصال السحابي بـ Supabase
 const SUPABASE_URL = "https://lhyfzbdzppcbwipqdzkv.supabase.co";
-const SUPABASE_KEY = "sb_publishable_vpk_حط_المفتاح_هنا_كامل"; // استبدل هذا النص بالـ Key الصحيح من لوحة تحكم Supabase
+const SUPABASE_KEY = "sb_publishable_vpkNzG861kogYQq2bRpAcw_LfbWt316";
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -15,24 +15,20 @@ async function loadData(key, defaultValue) {
 
     if (data && data.value) {
       const parsed = JSON.parse(data.value);
-      localStorage.setItem('lamsa_' +NEXT_PUBLIC_SUPABASE_URL=https://lhyfzbdzppcbwipqdzkv.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_vpkNzG861kogYQq2bRpAcw_LfbWt316, data.value);
+      localStorage.setItem('lamsa_' + key, data.value);
       return parsed;
     }
   } catch (err) {
-    console.log("الاعتماد على التخزين المحلي مؤقتاً لـ:", NEXT_PUBLIC_SUPABASE_URL=https://lhyfzbdzppcbwipqdzkv.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_vpkNzG861kogYQq2bRpAcw_LfbWt316);
+    console.log("الاعتماد على التخزين المحلي مؤقتاً لـ:", key);
   }
   
-  const saved = localStorage.getItem('lamsa_' +NEXT_PUBLIC_SUPABASE_URL=https://lhyfzbdzppcbwipqdzkv.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_vpkNzG861kogYQq2bRpAcw_LfbWt316 );
+  const saved = localStorage.getItem('lamsa_' + key);
   return saved ? JSON.parse(saved) : defaultValue;
 }
 
 // 3. دالة حفظ البيانات سحابياً ومحلياً في نفس اللحظة
 async function saveData(key, val) {
-  localStorage.setItem('lamsa_' + NEXT_PUBLIC_SUPABASE_URL=https://lhyfzbdzppcbwipqdzkv.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_vpkNzG861kogYQq2bRpAcw_LfbWt316, JSON.stringify(val));
+  localStorage.setItem('lamsa_' + key, JSON.stringify(val));
   
   try {
     const { error } = await supabase
@@ -44,7 +40,6 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_vpkNzG861kogYQq2bRpAcw_LfbWt
     console.error("فشل الاتصال بـ Supabase أثناء الحفظ:", err);
   }
 }
-
 let currentUserRole = 'engineer';
 let currentUserPhone = '';
 
