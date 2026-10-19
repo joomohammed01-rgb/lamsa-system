@@ -12,7 +12,7 @@ let currentUserRole = 'engineer';
 let currentUserPhone = '';
 
 let projectAutoCounter = loadData('projectAutoCounter', 1);
-let orderAutoCounter = loadData('orderAutoCounter', 1);
+let orderAutoCounter = parseInt(localStorage.getItem('lamsa_orderAutoCounter')) || 1;let quoteAutoCounter = loadData('quoteAutoCounter', 1);
 let quoteAutoCounter = loadData('quoteAutoCounter', 1);
 let usersDatabase = loadData('usersDatabase', {});
 let clientsList = loadData('clientsList', []);
