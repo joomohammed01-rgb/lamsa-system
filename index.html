@@ -533,7 +533,7 @@
                     </div>
                 </div>
 
-                <!-- 4. إدارة المنتجات والخامات -->
+<!-- 4. إدارة المنتجات والخامات -->
                 <div id="tab-products" class="tab-page hidden space-y-6">
                     <div class="flex justify-between items-center bg-white p-6 rounded-xl border shadow-sm">
                         <div>
@@ -551,21 +551,67 @@
 
                     <div class="bg-white rounded-xl border shadow-sm p-4 overflow-x-auto">
                         <table class="w-full text-right text-xs">
-<thead class="bg-gray-50 border-b">
-    <tr class="text-center">
-        <th class="p-3 text-right">اسم الخامة / المنتج</th>
-        <th class="p-3">التصنيف</th>
-        <th class="p-3">نوع آلية الاحتساب</th>
-        <th class="p-3">سعر البيع (للمتر/العدد)</th>
-        <th class="p-3 text-red-600">سعر التكلفة (الخامة)</th>
-        <th class="p-3">الإجراءات</th>
-    </tr>
-</thead>
-<tbody id="products-table-body" class="divide-y"></tbody>
+                            <thead class="bg-gray-50 border-b">
+                                <tr class="text-center">
+                                    <th class="p-3 text-right">اسم الخامة / المنتج</th>
+                                    <th class="p-3">التصنيف</th>
+                                    <th class="p-3">نوع آلية الاحتساب</th>
+                                    <th class="p-3">سعر البيع</th>
+                                    <th class="p-3 text-red-600">سعر التكلفة (الخامة)</th>
+                                    <th class="p-3">الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="products-table-body" class="divide-y"></tbody>
                         </table>
                     </div>
                 </div>
 
+                <!-- صفحة إضافة / تعديل منتج (تأكد أيضاً من تحديث خيارات الحساب هنا) -->
+                <div id="page-product-form" class="tab-page hidden space-y-6">
+                    <div class="flex justify-between items-center bg-white p-6 rounded-xl border shadow-sm">
+                        <h2 id="product-page-title" class="text-xl font-bold text-gray-800"><i class="fa-solid fa-box text-amber-500 ml-2"></i> إضافة منتج جديد</h2>
+                        <button onclick="switchTab('products')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg text-xs flex items-center">
+                            <i class="fa-solid fa-arrow-right ml-2"></i> إلغاء والعودة
+                        </button>
+                    </div>
+
+                    <div class="bg-white rounded-xl border shadow-sm p-6 max-w-xl">
+                        <form onsubmit="saveProduct(event)" class="space-y-4">
+                            <input type="hidden" id="edit-product-index">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1">اسم المنتَج / الخامة</label>
+                                <input type="text" id="product-name" required placeholder="اسم المنتج أو الخامة" class="w-full px-3 py-2 border rounded-lg text-xs outline-none focus:ring-2 focus:ring-amber-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1">التصنيف</label>
+                                <select id="product-category" class="product-cat-select w-full px-3 py-2 border rounded-lg text-xs outline-none bg-white focus:ring-2 focus:ring-amber-500"></select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1">طريقة الحساب والتسعير (آلية الاحتساب)</label>
+                                <select id="product-price-type" class="w-full px-3 py-2 border rounded-lg text-xs outline-none bg-white focus:ring-2 focus:ring-amber-500">
+                                    <option value="sqm">بالمتر المربع (العرض × الارتفاع ÷ 10,000)</option>
+                                    <option value="acrylic_facade">حروف (كل 50 سم عرض مع 100 سم ارتفاع = متر)</option>
+                                    <option value="minute">بالدقيقة (عدد الدقائق × السعر)</option>
+                                    <option value="unit">بالقطعة / العدد (عدد القطع × السعر)</option>
+                                </select>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1">سعر البيع (ج.م)</label>
+                                    <input type="number" id="product-price" step="any" placeholder="350" required class="w-full px-3 py-2 border rounded-lg text-xs font-mono font-bold outline-none focus:ring-2 focus:ring-amber-500">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1">سعر التكلفة / الشراء (ج.م)</label>
+                                    <input type="number" id="product-cost" step="any" placeholder="180" class="w-full px-3 py-2 border rounded-lg text-xs font-mono font-bold bg-red-50/50 outline-none focus:ring-2 focus:ring-amber-500">
+                                </div>
+                            </div>
+                            <div class="flex justify-end space-x-2 space-x-reverse pt-2">
+                                <button type="button" onclick="switchTab('products')" class="px-5 py-2.5 bg-gray-200 rounded-lg text-xs font-bold">إلغاء</button>
+                                <button type="submit" class="px-7 py-2.5 bg-amber-500 text-white rounded-lg text-xs font-bold hover:bg-amber-600 shadow">حفظ الخامة</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
 <!-- شاشة المخازن وجرد الخامات المحدثة -->
 <div id="tab-inventory" class="tab-page hidden space-y-6">
     <div class="flex justify-between items-center bg-white p-6 rounded-xl border shadow-sm">
