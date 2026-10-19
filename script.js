@@ -947,7 +947,6 @@ function openOrderPage() {
     document.getElementById('edit-order-index').value = '';
     document.getElementById('order-delivery-date').value = new Date().toISOString().split('T')[0];
     
-    // حساب أقصى رقم كود موجود حالياً لضمان التسلسل الصحيح (1، 2، 3...)
     let maxNum = 0;
     fullOrdersList.forEach(o => {
         if (o.code) {
