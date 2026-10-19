@@ -12,7 +12,7 @@ let currentUserRole = 'engineer';
 let currentUserPhone = '';
 
 let projectAutoCounter = loadData('projectAutoCounter', 1);
-let orderAutoCounter = parseInt(localStorage.getItem('lamsa_orderAutoCounter')) || 1;
+let orderAutoCounter = loadData('orderAutoCounter', 1);
 let quoteAutoCounter = loadData('quoteAutoCounter', 1);
 let usersDatabase = loadData('usersDatabase', {});
 let clientsList = loadData('clientsList', []);
@@ -47,14 +47,10 @@ function updateHeaderUserInfo() {
 
 function handleLogout() {
     localStorage.removeItem('currentUserPhone');
-    const loginSec = document.getElementById('login-section');
-    const dashSec = document.getElementById('dashboard-section');
-    if (loginSec) loginSec.classList.remove('hidden');
-    if (dashSec) dashSec.classList.add('hidden');
-    const phoneInput = document.getElementById('username');
-    const passInput = document.getElementById('password');
-    if (phoneInput) phoneInput.value = '';
-    if (passInput) passInput.value = '';
+    document.getElementById('dashboard-section').classList.add('hidden');
+    document.getElementById('login-section').classList.remove('hidden');
+    document.getElementById('username').value = '';
+    document.getElementById('password').value = '';
 }
 
 function getCurrentUserName() {
@@ -66,64 +62,30 @@ function getCurrentUserName() {
 }
 
 function handleLogin(event) {
-    if (event) event.preventDefault();
-    
-    usersDatabase = loadData('usersDatabase', usersDatabase);
-
-    const phoneInput = document.getElementById('username');
-    const passInput = document.getElementById('password');
-
-    const phone = phoneInput ? phoneInput.value.trim() : '';
-    const pass = passInput ? passInput.value.trim() : '';
-
-    // حساب المدير الأساسي السري في حالة عدم وجود مستخدمين مسجلين
-    if (phone === '01063292810' && pass === '252503') {
-        currentUserPhone = phone;
-        currentUserRole = 'admin';
-        localStorage.setItem('currentUserPhone', phone);
-        
-        if (!usersDatabase[phone]) {
-            usersDatabase[phone] = { name: 'م/ يوسف محمد', role: 'admin', pass: '252503', title: 'مدير النظام' };
-            saveData('usersDatabase', usersDatabase);
-        }
-
-        document.getElementById('login-section')?.classList.add('hidden');
-        document.getElementById('dashboard-section')?.classList.remove('hidden');
-        
-        renderAllTables();
-        populateOrderDropdowns();
-        populateCategoriesDropdown();
-        applyUserPermissions();
-        switchTab('home');
-        return;
-    }
-
-    if (!usersDatabase[phone]) {
-        alert('خطأ: رقم الهاتف غير مسجل بالنظام!');
-        return;
-    }
+    event.preventDefault();
+    const phone = document.getElementById('username').value.trim();
+    const pass = document.getElementById('password').value.trim();
 
     const user = usersDatabase[phone];
-    if (user.pass !== pass) {
-        alert('خطأ: كلمة المرور غير صحيحة!');
+    if (!user || user.pass !== pass) {
+        alert('خطأ: بيانات الدخول غير صحيحة!');
         return;
     }
 
-    currentUserPhone = phone;
-    currentUserRole = user.role || 'engineer';
     localStorage.setItem('currentUserPhone', phone);
 
     const nameEl = document.getElementById('display-username');
     const roleEl = document.getElementById('display-role');
-    if (nameEl) nameEl.textContent = user.name || 'موظف';
-    if (roleEl) roleEl.textContent = user.title || (user.role === 'admin' ? 'مدير النظام' : 'موظف');
+    if (nameEl) nameEl.textContent = user.name;
+    if (roleEl) roleEl.textContent = user.role || 'موظف';
 
-    document.getElementById('login-section')?.classList.add('hidden');
-    document.getElementById('dashboard-section')?.classList.remove('hidden');
+    document.getElementById('login-section').classList.add('hidden');
+    document.getElementById('dashboard-section').classList.remove('hidden');
 
     renderAllTables();
     populateOrderDropdowns();
     populateCategoriesDropdown();
+
     applyUserPermissions();
     switchTab('home');
 }
@@ -135,9 +97,11 @@ function hasPerm(permKey) {
 }
 
 function switchTab(pageId) {
+    // 1. إخفاء كل صفحات الـ tab والـ page الموجودة في النظام
     const allPages = document.querySelectorAll('.tab-page');
     allPages.forEach(p => p.classList.add('hidden'));
 
+    // 2. البحث عن الصفحة المستهدفة سواء كانت تبدأ بـ tab- أو page- وعرضها فوراً
     let target = document.getElementById('tab-' + pageId) || 
                  document.getElementById('page-' + pageId) || 
                  document.getElementById(pageId);
@@ -148,6 +112,7 @@ function switchTab(pageId) {
         console.warn('الصفحة غير موجودة:', pageId);
     }
 
+    // 3. تحديث القائمة الجانبية (Sidebar Active State)
     const navs = ['home', 'users', 'clients', 'products', 'inventory', 'projects', 'orders', 'sales', 'finance', 'client-ledger', 'trash-bin'];
     navs.forEach(n => {
         const navEl = document.getElementById('nav-' + n);
@@ -266,6 +231,7 @@ function openUserPage() {
     switchTab('user-form');
 }
 
+// --- دالة حفظ الموظف المصححة بالكامل ---
 function saveEmployee(e) {
     if (e) e.preventDefault();
     const editPh = document.getElementById('edit-user-ph')?.value || '';
@@ -281,7 +247,7 @@ function saveEmployee(e) {
     }
 
     const perms = {
-        viewHome: true,
+        viewHome: true, // تفعيل الرئيسية تلقائياً
         viewUsers: !!document.getElementById('perm-view-users')?.checked,
         editUsers: !!document.getElementById('perm-edit-users')?.checked,
         deleteUsers: !!document.getElementById('perm-delete-users')?.checked,
@@ -322,8 +288,56 @@ function saveEmployee(e) {
     saveData('usersDatabase', usersDatabase);
     alert('تم حفظ بيانات الموظف بنجاح!');
     
-    renderAllTables();
-    switchTab('users');
+    if (typeof renderAllTables === 'function') renderAllTables();
+    if (typeof switchTab === 'function') switchTab('users');
+}
+
+
+
+// --- دالة تسجيل الدخول المصححة ---
+function handleLogin(event) {
+    if (event) event.preventDefault();
+    
+    // إعادة قراءة بيانات المستخدمين من التخزين المحلي لضمان وجود الحسابات الجديدة
+    usersDatabase = loadData('usersDatabase', usersDatabase);
+
+    const phoneInput = document.getElementById('username');
+    const passInput = document.getElementById('password');
+
+    const phone = phoneInput ? phoneInput.value.trim() : '';
+    const pass = passInput ? passInput.value.trim() : '';
+
+    if (!usersDatabase[phone]) {
+        alert('خطأ: رقم الهاتف غير مسجل بالنظام!');
+        return;
+    }
+
+    const user = usersDatabase[phone];
+
+    if (user.pass !== pass) {
+        alert('خطأ: كلمة المرور غير صحيحة!');
+        return;
+    }
+
+    // تعيين الحساب الحالي وقفظ البيانات في التخزين المحلي والذاكرة
+    currentUserPhone = phone;
+    currentUserRole = user.role || 'engineer';
+    localStorage.setItem('currentUserPhone', phone);
+
+    const nameEl = document.getElementById('display-username');
+    const roleEl = document.getElementById('display-role');
+    if (nameEl) nameEl.textContent = user.name || 'موظف';
+    if (roleEl) roleEl.textContent = user.title || (user.role === 'admin' ? 'مدير النظام' : 'موظف');
+
+    document.getElementById('login-section')?.classList.add('hidden');
+    document.getElementById('dashboard-section')?.classList.remove('hidden');
+
+    if (typeof renderAllTables === 'function') renderAllTables();
+    if (typeof populateOrderDropdowns === 'function') populateOrderDropdowns();
+    if (typeof populateCategoriesDropdown === 'function') populateCategoriesDropdown();
+
+    applyUserPermissions();
+    switchTab('home');
 }
 
 function editUser(ph) {
@@ -336,6 +350,12 @@ function editUser(ph) {
     document.getElementById('new-pass').value = u.pass || '';
     document.getElementById('new-role').value = u.role || 'engineer';
     if(document.getElementById('new-salary')) document.getElementById('new-salary').value = u.salary || 0;
+
+    const p = u.perms || {};
+    if (document.getElementById('perm-view-home-stats')) document.getElementById('perm-view-home-stats').checked = !!p.viewHomeStats;
+    if (document.getElementById('perm-view-users')) document.getElementById('perm-view-users').checked = !!p.viewUsers;
+    if (document.getElementById('perm-edit-users')) document.getElementById('perm-edit-users').checked = !!p.editUsers;
+    if (document.getElementById('perm-delete-users')) document.getElementById('perm-delete-users').checked = !!p.deleteUsers;
 
     document.getElementById('user-page-title').innerHTML = `<i class="fa-solid fa-user-pen text-amber-500 ml-2"></i> تعديل بيانات الموظف`;
     switchTab('user-form');
@@ -420,7 +440,6 @@ function deleteClient(index) {
         populateOrderDropdowns();
     }
 }
-
 function openClientLedger() {
     switchTab('client-ledger');
     renderClientLedger();
@@ -454,6 +473,7 @@ function renderClientLedger() {
         return;
     }
 
+    // عرض العملاء الذين لديهم مشاريع/أوامر فقط
     const activeClients = list.filter(client => {
         const clientOrders = orders.filter(o => o.client === client.name);
         return clientOrders.length > 0;
@@ -633,7 +653,7 @@ function printSingleClientLedger(clientName) {
     executeWindowPrint(printContent);
 }
 
-// --- حسابات المنتجات والأربعة طرق ---
+// --- إدارة حسابات وتسعير الأكريليك والمنتجات ---
 function calculateRowUnitSpecs(rowId) {
     const row = document.getElementById('ord-prod-row-' + rowId);
     if (!row) return;
@@ -653,11 +673,15 @@ function calculateRowUnitSpecs(rowId) {
 
     if (prodObj.priceType === 'unit') {
         resultInput.value = `${qty} قطعة`;
-    } else if (prodObj.priceType === 'minute') {
-        resultInput.value = `${qty} دقيقة`;
+    } else if (prodObj.priceType === 'lm') {
+        const totalLM = (height / 100) * qty;
+        resultInput.value = `${totalLM.toFixed(2)} متر طولي`;
     } else if (prodObj.priceType === 'acrylic_facade') {
-        const totalUnits = (width / 50) * (height / 100) * qty;
-        resultInput.value = `${totalUnits.toFixed(2)} متر حسابي (حروف)`;
+        let heightMultiplier = Math.ceil(height / 50);
+        if (heightMultiplier < 1) heightMultiplier = 1;
+        const widthFactor = width / 100;
+        const totalUnits = heightMultiplier * widthFactor * qty;
+        resultInput.value = `${totalUnits.toFixed(2)} متر احتسابي (واجهة أكريليك)`;
     } else {
         const totalSqm = ((width * height) / 10000) * qty;
         resultInput.value = `${totalSqm.toFixed(2)} م²`;
@@ -843,7 +867,6 @@ function withdrawStock(index) {
         renderAllTables();
     }
 }
-
 // --- إدارة المشاريع ---
 function openProjectPage() {
     document.getElementById('edit-project-index').value = '';
@@ -861,6 +884,7 @@ function saveProject(e) {
     const clientName = document.getElementById('proj-client').value;
     const projName = document.getElementById('proj-name').value;
 
+    // جلب رقم هاتف العميل المختار تلقائياً من قائمة العملاء
     const clientObj = clientsList.find(c => c.name === clientName) || {};
     const ownerPhone = clientObj.phone || '—';
 
@@ -942,27 +966,23 @@ function filterProjectsTable() {
     });
 }
 
-// دالة فتح صفحة أمر الشغل الجديد
+
+// --- إدارة أوامر الشغل ---
+
 function openOrderPage() {
     document.getElementById('edit-order-index').value = '';
     document.getElementById('order-delivery-date').value = new Date().toISOString().split('T')[0];
-    
-    let maxNum = 0;
-    fullOrdersList.forEach(o => {
-        if (o.code) {
-            let num = parseInt(o.code.replace(/[^\d]/g, '')) || 0;
-            if (num > maxNum) maxNum = num;
-        }
-    });
-    
-    let nextCounter = maxNum + 1;
+    let currentCounter = parseInt(localStorage.getItem('orderAutoCounter')) || 1;
     const codeInput = document.getElementById('order-code-input');
-    if (codeInput) codeInput.value = `ORD - ${nextCounter}`;
+    if (codeInput) codeInput.value = `ORD - ${currentCounter}`;
 
     document.getElementById('select-order-client').value = '';
     
     const projSelect = document.getElementById('select-order-project');
     if (projSelect) projSelect.innerHTML = '<option value="">-- اختر العميل أولاً --</option>';
+
+    const deliveryDateInput = document.getElementById('order-delivery-date');
+    if (deliveryDateInput) deliveryDateInput.value = '';
 
     const paidInput = document.getElementById('order-paid-amount');
     if (paidInput) paidInput.value = '';
@@ -982,7 +1002,58 @@ function openOrderPage() {
     setupPasteEventListener();
 }
 
-// دالة حفظ أمر الشغل
+function addProductRow() {
+    const container = document.getElementById('products-dynamic-container');
+    if (!container) return;
+    
+    const rowId = Date.now();
+    const newRow = document.createElement('div');
+    newRow.className = 'product-row grid grid-cols-1 md:grid-cols-12 gap-3 p-3 bg-gray-50 rounded-lg border items-end mt-2';
+    newRow.id = 'ord-prod-row-' + rowId;
+    newRow.innerHTML = `
+        <div class="md:col-span-3">
+            <label class="block text-[11px] font-bold text-gray-700 mb-1">المنتج</label>
+            <select onchange="calculateRowUnitSpecs('${rowId}')" class="product-select w-full px-2 py-1.5 border rounded text-xs bg-white outline-none" required></select>
+        </div>
+        <div class="md:col-span-2">
+            <label class="block text-[11px] font-bold text-gray-700 mb-1">العرض (سم)</label>
+            <input type="number" oninput="calculateRowUnitSpecs('${rowId}')" placeholder="العرض" class="product-width w-full px-2 py-1.5 border rounded text-xs outline-none">
+        </div>
+        <div class="md:col-span-2">
+            <label class="block text-[11px] font-bold text-gray-700 mb-1">الارتفاع (سم)</label>
+            <input type="number" oninput="calculateRowUnitSpecs('${rowId}')" placeholder="الارتفاع" class="product-height w-full px-2 py-1.5 border rounded text-xs outline-none">
+        </div>
+        <div class="md:col-span-1">
+            <label class="block text-[11px] font-bold text-amber-800 mb-1">العدد</label>
+            <input type="number" value="1" min="1" oninput="calculateRowUnitSpecs('${rowId}')" placeholder="1" class="product-qty w-full px-2 py-1.5 border rounded text-xs font-bold outline-none">
+        </div>
+        <div class="md:col-span-2">
+            <label class="block text-[11px] font-bold text-blue-700 mb-1">وحدة القياس / الناتِج</label>
+            <input type="text" id="unit-calc-result-${rowId}" readonly value="—" class="w-full px-2 py-1.5 border rounded text-xs font-black bg-blue-50 text-blue-800 outline-none">
+        </div>
+        <div class="md:col-span-1">
+            <label class="block text-[11px] font-bold text-gray-700 mb-1">الملاحظات</label>
+            <input type="text" placeholder="ملاحظات..." class="product-notes w-full px-2 py-1.5 border rounded text-xs outline-none">
+        </div>
+        <div class="md:col-span-1 text-center">
+            <button type="button" onclick="document.getElementById('ord-prod-row-${rowId}').remove()" class="bg-red-100 text-red-600 font-bold p-1.5 rounded text-xs w-full"><i class="fa-solid fa-trash"></i></button>
+        </div>
+    `;
+    container.appendChild(newRow);
+    populateSingleProductDropdown(newRow.querySelector('.product-select'));
+}
+
+function populateSingleProductDropdown(selectEl) {
+    if (!selectEl) return;
+    selectEl.innerHTML = '<option value="">-- اختر المنتج --</option>';
+    if (typeof productsList !== 'undefined') {
+        productsList.forEach(p => {
+            selectEl.innerHTML += `<option value="${p.name}">${p.name}</option>`;
+        });
+    }
+}
+
+// --- دالة حفظ أمر الشغل (المصححة لتعمل 100% مع السيستم) ---
 function saveFullOrder(e) {
     if (e) e.preventDefault();
     
@@ -1002,6 +1073,7 @@ function saveFullOrder(e) {
     const deliveryDate = document.getElementById('order-delivery-date')?.value || new Date().toISOString().split('T')[0];
     const paidAmount = parseFloat(document.getElementById('order-paid-amount')?.value) || 0;
 
+    // تجميع الأصناف من الصفوف الديناميكية بدقة
     const rows = document.querySelectorAll('.product-row');
     let productsSummaryText = '';
     let grandTotal = 0;
@@ -1018,14 +1090,10 @@ function saveFullOrder(e) {
             const unitPrice = prodObj ? (parseFloat(prodObj.price) || 0) : 0;
             
             let itemTotal = 0;
-            if (prodObj && prodObj.priceType === 'unit') {
-                itemTotal = qty * unitPrice;
-            } else if (prodObj && prodObj.priceType === 'minute') {
-                itemTotal = qty * unitPrice;
-            } else if (prodObj && prodObj.priceType === 'acrylic_facade') {
-                itemTotal = (width / 50) * (height / 100) * qty * unitPrice;
+            if (width > 0 && height > 0) {
+                itemTotal = ((width / 100) * (height / 100) * qty * unitPrice);
             } else {
-                itemTotal = ((width * height) / 10000) * qty * unitPrice;
+                itemTotal = qty * unitPrice;
             }
 
             grandTotal += itemTotal;
@@ -1034,17 +1102,9 @@ function saveFullOrder(e) {
     });
 
     let orderCode = document.getElementById('order-code-input')?.value;
-
-    // في حالة إضافة أمر شغل جديد (تأكيد حساب الكود التلقائي)
-    if (idx === undefined || idx === '') {
-        let maxNum = 0;
-        fullOrdersList.forEach(o => {
-            if (o.code) {
-                let num = parseInt(o.code.replace(/[^\d]/g, '')) || 0;
-                if (num > maxNum) maxNum = num;
-            }
-        });
-        orderCode = `ORD - ${maxNum + 1}`;
+    if (!orderCode) {
+        let currentCounter = parseInt(localStorage.getItem('orderAutoCounter')) || (fullOrdersList.length + 1);
+        orderCode = `ORD - ${currentCounter}`;
     }
 
     const orderData = {
@@ -1064,10 +1124,13 @@ function saveFullOrder(e) {
         fullOrdersList[idx] = orderData;
     } else {
         fullOrdersList.unshift(orderData);
+        let currentCounter = parseInt(localStorage.getItem('orderAutoCounter')) || (fullOrdersList.length + 1);
+        localStorage.setItem('orderAutoCounter', currentCounter + 1);
     }
 
     saveData('fullOrdersList', fullOrdersList);
     
+    // تسجيل دفعة العربون في الخزينة تلقائياً لو تم إدخال مبلغ مدفوع
     if (paidAmount > 0 && (idx === undefined || idx === '')) {
         const transObj = {
             date: new Date().toISOString().split('T')[0],
@@ -1087,106 +1150,6 @@ function saveFullOrder(e) {
 
     if (typeof renderAllTables === 'function') renderAllTables();
     if (typeof switchTab === 'function') switchTab('orders');
-}
-
-function saveFullOrder(e) {
-    if (e) e.preventDefault();
-    
-    const clientName = document.getElementById('select-order-client')?.value;
-    const projectName = document.getElementById('select-order-project')?.value;
-    
-    if (!clientName) {
-        alert('برجاء اختيار العميل');
-        return;
-    }
-    if (!projectName) {
-        alert('برجاء اختيار المشروع التابع له');
-        return;
-    }
-
-    const idx = document.getElementById('edit-order-index')?.value;
-    const deliveryDate = document.getElementById('order-delivery-date')?.value || new Date().toISOString().split('T')[0];
-    const paidAmount = parseFloat(document.getElementById('order-paid-amount')?.value) || 0;
-
-    const rows = document.querySelectorAll('.product-row');
-    let productsSummaryText = '';
-    let grandTotal = 0;
-
-    rows.forEach(row => {
-        const prodName = row.querySelector('.product-select')?.value;
-        const width = parseFloat(row.querySelector('.product-width')?.value) || 0;
-        const height = parseFloat(row.querySelector('.product-height')?.value) || 0;
-        const qty = parseFloat(row.querySelector('.product-qty')?.value) || 1;
-        const notes = row.querySelector('.product-notes')?.value || '';
-
-        if (prodName) {
-            const prodObj = productsList.find(p => p.name === prodName);
-            const unitPrice = prodObj ? (parseFloat(prodObj.price) || 0) : 0;
-            
-            let itemTotal = 0;
-            if (prodObj && prodObj.priceType === 'unit') {
-                itemTotal = qty * unitPrice;
-            } else if (prodObj && prodObj.priceType === 'minute') {
-                itemTotal = qty * unitPrice;
-            } else if (prodObj && prodObj.priceType === 'acrylic_facade') {
-                itemTotal = (width / 50) * (height / 100) * qty * unitPrice;
-            } else {
-                itemTotal = ((width * height) / 10000) * qty * unitPrice;
-            }
-
-            grandTotal += itemTotal;
-            productsSummaryText += `- ${prodName} (مقاس: ${width}×${height} سم، عدد: ${qty}) [إجمالي: ${itemTotal} ج.م] ${notes ? ' - ملاحظات: ' + notes : ''}\n`;
-        }
-    });
-
-    let orderCode = document.getElementById('order-code-input')?.value;
-
-    if (idx === undefined || idx === '') {
-        let currentCounter = parseInt(localStorage.getItem('lamsa_orderAutoCounter')) || (fullOrdersList.length + 1);
-        orderCode = `ORD - ${currentCounter}`;
-        saveData('orderAutoCounter', currentCounter + 1);
-    }
-
-    const orderData = {
-        code: orderCode,
-        client: clientName,
-        project: projectName,
-        engineer: getCurrentUserName(),
-        contractDate: new Date().toISOString().split('T')[0],
-        deliveryDate: deliveryDate,
-        paidAmount: paidAmount,
-        totalAmount: grandTotal,
-        products: productsSummaryText || 'بدون تفاصيل',
-        image: pastedImageData || ''
-    };
-
-    if (idx !== undefined && idx !== '' && fullOrdersList[idx]) {
-        fullOrdersList[idx] = orderData;
-    } else {
-        fullOrdersList.unshift(orderData);
-    }
-
-    saveData('fullOrdersList', fullOrdersList);
-    
-    if (paidAmount > 0 && (idx === undefined || idx === '')) {
-        const transObj = {
-            date: new Date().toISOString().split('T')[0],
-            type: 'in',
-            category: 'مبيعات وعملاء',
-            desc: `دفعة مقدمة / عربون أمر شغل (${orderCode})`,
-            amount: paidAmount,
-            method: 'نقداً (كاش)',
-            user: getCurrentUserName(),
-            client: clientName,
-            project: projectName,
-            orderCode: orderCode
-        };
-        financeTransactions.unshift(transObj);
-        saveData('financeTransactions', financeTransactions);
-    }
-
-    renderAllTables();
-    switchTab('orders');
 }
 
 function editOrder(index) {
@@ -1412,7 +1375,7 @@ function addQuoteItemRow() {
             <input type="number" oninput="calculateQuoteRowTotal('${rowId}')" placeholder="0" class="quote-height w-full px-2 py-1.5 border rounded text-xs outline-none">
         </div>
         <div class="md:col-span-1">
-            <label class="block text-[11px] font-bold text-gray-700 mb-1">العدد/الدقائق</label>
+            <label class="block text-[11px] font-bold text-gray-700 mb-1">العدد</label>
             <input type="number" value="1" min="1" oninput="calculateQuoteRowTotal('${rowId}')" class="quote-qty w-full px-2 py-1.5 border rounded text-xs font-bold outline-none">
         </div>
         <div class="md:col-span-2">
@@ -1435,6 +1398,7 @@ function addQuoteItemRow() {
     }
 }
 
+// دالة حفظ وعرض السعر مع الترقيم التلقائي المبتدئ من Q-1
 function saveAndPreviewQuotation() {
     const clientSelect = document.getElementById('quote-select-client');
     const client = clientSelect ? clientSelect.value : '';
@@ -1456,15 +1420,16 @@ function saveAndPreviewQuotation() {
             let areaFormatted = `${qty} قطعة`;
 
             if (prod.priceType === 'acrylic_facade') {
-                const totalUnits = (width / 50) * (height / 100) * qty;
+                let heightMultiplier = Math.ceil(height / 50);
+                if (heightMultiplier < 1) heightMultiplier = 1;
+                const totalUnits = heightMultiplier * (width / 100) * qty;
                 itemTotal = totalUnits * prod.price;
-                areaFormatted = `${totalUnits.toFixed(2)} وحدة حسابية`;
+                areaFormatted = `${totalUnits.toFixed(2)} م.احتسابي`;
             } else if (prod.priceType === 'unit') {
                 itemTotal = prod.price * qty;
-                areaFormatted = `${qty} قطعة`;
-            } else if (prod.priceType === 'minute') {
-                itemTotal = prod.price * qty;
-                areaFormatted = `${qty} دقيقة`;
+            } else if (prod.priceType === 'lm') {
+                itemTotal = (height / 100) * qty * prod.price;
+                areaFormatted = `${((height / 100) * qty).toFixed(2)} م.ط`;
             } else {
                 let totalArea = ((width * height) / 10000) * qty;
                 itemTotal = totalArea * prod.price;
@@ -1485,7 +1450,7 @@ function saveAndPreviewQuotation() {
     });
 
     if (items.length === 0) {
-        alert('برجاء اختيار خامة واحدة على الأقل وتحديد البيانات بشكل صحيح');
+        alert('برجاء اختيار خامة واحدة على الأقل وتحديد المقاسات والعدد بشكل صحيح');
         return;
     }
 
@@ -1499,6 +1464,7 @@ function saveAndPreviewQuotation() {
 
     quotationsList.unshift(activeQuoteData);
 
+    // إعادة الترقيم التسلسلي ليبدأ من Q-1 تلقائياً
     quotationsList.forEach((q, index) => {
         q.id = 'Q-' + (quotationsList.length - index);
     });
@@ -1509,6 +1475,7 @@ function saveAndPreviewQuotation() {
     showQuotationPreviewModal(activeQuoteData);
 }
 
+// دالة تعديل عرض السعر
 function editQuotation(index) {
     const q = quotationsList[index];
     if (!q) return;
@@ -1558,6 +1525,7 @@ function editQuotation(index) {
     renderAllTables();
 }
 
+// دالة الموافقة على عرض السعر وتحويله مباشرة لأمر شغل
 function approveQuotation(index) {
     const q = quotationsList[index];
     if (!q) return;
@@ -1587,10 +1555,12 @@ function calculateQuoteRowTotal(rowId) {
 
         if (prod.priceType === 'unit') {
             itemTotal = prod.price * qty;
-        } else if (prod.priceType === 'minute') {
-            itemTotal = prod.price * qty;
+        } else if (prod.priceType === 'lm') {
+            itemTotal = (height / 100) * qty * prod.price;
         } else if (prod.priceType === 'acrylic_facade') {
-            itemTotal = (width / 50) * (height / 100) * qty * prod.price;
+            let heightMultiplier = Math.ceil(height / 50);
+            if (heightMultiplier < 1) heightMultiplier = 1;
+            itemTotal = heightMultiplier * (width / 100) * qty * prod.price;
         } else {
             const totalSqm = ((width * height) / 10000) * qty;
             itemTotal = totalSqm * prod.price;
@@ -1670,7 +1640,6 @@ function renderSalesTable() {
     if (statCount) statCount.innerText = quotationsList ? quotationsList.length : 0;
     if (statDate) statDate.innerText = (quotationsList && quotationsList.length > 0) ? quotationsList[0].date : '—';
 }
-
 function deleteQuotation(index) {
     if (!quotationsList[index]) return;
     const q = quotationsList[index];
@@ -1834,6 +1803,7 @@ function openFinanceTransactionForm() {
     switchTab('finance-form');
 }
 
+// 1. تعبئة قائمة جميع المشاريع في نموذج الحركة المالية (تعرض كل المشاريع المسجلة)
 function populateFinanceDropdowns() {
     const projSelect = document.getElementById('trans-project');
     if (projSelect) {
@@ -1848,20 +1818,23 @@ function populateFinanceDropdowns() {
         orderSelect.innerHTML = '<option value="">-- اختر أمر الشغل --</option>';
     }
 }
-
+// 2. تحديث قائمة أوامر الشغل الخاصة بالمشروع المختار وحساب المجموع تلقائياً
 function updateFinanceProjectsDropdown() {
     const projName = document.getElementById('trans-project').value;
     const orderSelect = document.getElementById('trans-order');
 
     if (!orderSelect) return;
     
+    // ربط حدث التغيير لقائمة أوامر الشغل لتحديث الخانة تلقائياً
     orderSelect.onchange = updateFinanceAccountDisplay;
     orderSelect.innerHTML = '<option value="">-- اختر أمر الشغل --</option>';
 
     const filteredOrders = fullOrdersList.filter(o => o.project === projName);
     filteredOrders.forEach(o => {
+        // فحص شامل لكل احتمالات أسماء الإجمالي لضمان عدم ظهور undefined
         let orderTotal = parseFloat(o.totalAmount || o.totalPrice || o.total || 0);
         
+        // لو الإجمالي ما زال صفراً، نبحث داخلياً لو فيه تفاصيل منتجات ونحسبها
         if (orderTotal === 0 && o.productsData && Array.isArray(o.productsData)) {
             o.productsData.forEach(item => {
                 let pObj = productsList.find(p => p.name === item.name);
@@ -1874,17 +1847,22 @@ function updateFinanceProjectsDropdown() {
         orderSelect.innerHTML += `<option value="${o.code}">${o.code} - الإجمالي: ${orderTotal.toLocaleString()} ج.م</option>`;
     });
 
+    // استدعاء دالة تحديث خانة الحساب فوراً عند تغيير المشروع
     updateFinanceAccountDisplay();
 }
 
+
+// دالة مسؤولة عن قراءة القيمة المحددة وضعها في خانة حساب المشروع كامل
 function updateFinanceAccountDisplay() {
     const projSelect = document.getElementById('trans-project');
     const orderSelect = document.getElementById('trans-order');
     
+    // البحث المباشر عن كل الحقول والباكسات الزرقاء في صفحة الحركة المالية
     const allDisplayBoxes = document.querySelectorAll('#tab-finance-form input, #tab-finance-form span, #tab-finance-form div, #page-finance-form input, #page-finance-form span, #page-finance-form div');
     
     let targetElement = null;
     allDisplayBoxes.forEach(el => {
+        // بنبحث عن العنصر اللي جواه "ج.م" أو "0.00" عشان نمسكه بالظبط
         if (el.textContent.includes('ج.م') || el.textContent.includes('0.00') || (el.value && el.value.includes('ج.م'))) {
             targetElement = el;
         }
@@ -1894,12 +1872,14 @@ function updateFinanceAccountDisplay() {
 
     let calculatedTotal = 0;
 
+    // 1. حساب إجمالي أمر الشغل لو مختار أمر
     if (orderSelect && orderSelect.value) {
         const selectedOrder = fullOrdersList.find(o => o.code === orderSelect.value);
         if (selectedOrder) {
             calculatedTotal = parseFloat(selectedOrder.totalAmount || selectedOrder.totalPrice || selectedOrder.total || 0);
         }
     } 
+    // 2. أو حساب إجمالي المشروع كله لو مختار مشروع فقط
     else if (projSelect && projSelect.value) {
         const projOrders = fullOrdersList.filter(o => o.project === projSelect.value);
         projOrders.forEach(o => {
@@ -1909,13 +1889,13 @@ function updateFinanceAccountDisplay() {
 
     const formattedText = calculatedTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م';
 
+    // تحديث العنصر فوراً
     if (targetElement.tagName === 'INPUT') {
         targetElement.value = formattedText;
     } else {
         targetElement.textContent = formattedText;
     }
 }
-
 function editTransaction(index) {
     if (!hasPerm('editFinance')) { alert('ليس لديك صلاحية لتعديل الحركات المالية!'); return; }
     const t = financeTransactions[index];
@@ -2013,7 +1993,7 @@ function deleteTransaction(index) {
 
 // --- العرض الموحد لجميع الجداول والداتا ---
 function renderAllTables() {
-    const empTbody = document.getElementById('employees-table-body');
+const empTbody = document.getElementById('employees-table-body');
     if (empTbody) {
         empTbody.innerHTML = '';
         for (let ph in usersDatabase) {
@@ -2045,7 +2025,7 @@ function renderAllTables() {
     renderTrashBinTable();
     if (typeof renderSalesTable === 'function') renderSalesTable();
 
-    const clientTbody = document.getElementById('clients-table-body');
+const clientTbody = document.getElementById('clients-table-body');
     if (clientTbody) {
         clientTbody.innerHTML = '';
         clientsList.forEach((c, idx) => {
@@ -2075,16 +2055,11 @@ function renderAllTables() {
         const items = productsList || [];
         
         items.forEach((item, idx) => {
-            let pTypeName = 'بالمتر المربع';
-            if(item.priceType === 'acrylic_facade') pTypeName = 'حروف';
-            else if(item.priceType === 'minute') pTypeName = 'بالدقيقة';
-            else if(item.priceType === 'unit') pTypeName = 'بالقطعة';
-
             prodTbody.innerHTML += `
                 <tr class="hover:bg-gray-50 text-center border-b">
                     <td class="p-3 font-bold text-gray-800 text-right">${item.name || item.itemName || '—'}</td>
                     <td class="p-3"><span class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">${item.category || 'عام'}</span></td>
-                    <td class="p-3 font-bold text-amber-600">${pTypeName}</td>
+                    <td class="p-3 font-bold text-amber-600">${item.unit || item.calcType || 'بالقطعة'}</td>
                     <td class="p-3 font-bold text-emerald-600 font-mono">${(parseFloat(item.sellPrice || item.price) || 0).toLocaleString()} ج.م</td>
                     <td class="p-3 font-bold text-red-500 font-mono">${(parseFloat(item.costPrice || item.cost) || 0).toLocaleString()} ج.م</td>
                     <td class="p-3 text-center space-x-1 space-x-reverse">
@@ -2096,7 +2071,7 @@ function renderAllTables() {
         });
     }
     
-    const invTbody = document.getElementById('inventory-table-body');
+const invTbody = document.getElementById('inventory-table-body');
     if (invTbody) {
         invTbody.innerHTML = '';
         const items = inventoryList || [];
@@ -2130,7 +2105,6 @@ function renderAllTables() {
             });
         }
     }
-
     const projTbody = document.getElementById('projects-table-body');
     if (projTbody) {
         projTbody.innerHTML = '';
@@ -2302,6 +2276,7 @@ function applyUserPermissions() {
 
     const user = usersDatabase[currentPhone];
 
+    // لو المستخدم أدمن النظام الرئيسي، تظهر له كل الأقسام بالكامل
     if (user.role === 'admin') {
         const allNavs = ['home', 'users', 'clients', 'client-ledger', 'products', 'inventory', 'projects', 'orders', 'sales', 'finance', 'trash-bin'];
         allNavs.forEach(nav => {
@@ -2314,19 +2289,23 @@ function applyUserPermissions() {
         return;
     }
 
+    // لو موظف عادي، نقرأ صلاحياته بدقة ونظهر أو نخفي الأقسام بناءً عليها
     const p = user.perms || {};
 
+    // الرئيسية تظهر دائماً للموظف
     toggleNavVisibility('nav-home', true);
+    
+    // ربط الصلاحيات بأزرار القائمة الجانبية (Sidebar Navs)
     toggleNavVisibility('nav-users', !!p.viewUsers);
     toggleNavVisibility('nav-clients', !!p.viewClients);
     toggleNavVisibility('nav-client-ledger', !!p.viewClientLedger);
     toggleNavVisibility('nav-products', !!p.viewProducts);
-    toggleNavVisibility('nav-inventory', !!p.viewProducts);
+    toggleNavVisibility('nav-inventory', !!p.viewProducts); // المخازن مرتبطة بصلاحية المنتجات أو الجرد
     toggleNavVisibility('nav-projects', !!p.viewProjects);
     toggleNavVisibility('nav-orders', !!p.viewOrders);
     toggleNavVisibility('nav-sales', !!p.viewSales);
     toggleNavVisibility('nav-finance', !!p.viewFinance);
-    toggleNavVisibility('nav-trash-bin', user.role === 'admin');
+    toggleNavVisibility('nav-trash-bin', user.role === 'admin'); // المهملات للأدمن فقط
 
     applyHomeStatsPermissions();
 }
@@ -2372,14 +2351,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const loggedUserPhone = localStorage.getItem('currentUserPhone');
     const loginSec = document.getElementById('login-section');
     const dashSec = document.getElementById('dashboard-section');
-    
     usersDatabase = loadData('usersDatabase', {});
-
-    // تأكد من وجود حساب المدير الأساسي تلقائياً في قاعدة البيانات
-    if (!usersDatabase['01063292810']) {
-        usersDatabase['01063292810'] = { name: 'م/ يوسف محمد', role: 'admin', pass: '252503', title: 'مدير النظام' };
-        saveData('usersDatabase', usersDatabase);
-    }
 
     renderAllTables();
     populateOrderDropdowns();
@@ -2397,6 +2369,7 @@ document.addEventListener('DOMContentLoaded', function() {
         localStorage.removeItem('currentUserPhone');
         if (loginSec) loginSec.classList.remove('hidden');
         if (dashSec) dashSec.classList.add('hidden');
+        // شاشة تسجيل الدخول العادية دائماً؛ إنشاء الحسابات من إدارة الموظفين بعد دخول المدير.
         document.getElementById('login-form')?.classList.remove('hidden');
     }
 });
