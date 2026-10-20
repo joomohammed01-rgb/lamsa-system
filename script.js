@@ -5,8 +5,16 @@ function loadData(key, defaultVal) {
 }
 
 function saveData(key, val) {
-    localStorage.setItem('lamsa_' + key, JSON.stringify(val));
-}
+  apiKey: "AIzaSyAJm-vim_0omg6GyVzsh1ka0LjtJBgf5aY",
+  authDomain: "lams-server.firebaseapp.com",
+  databaseURL: "https://lams-server-default-rtdb.firebaseio.com",
+  projectId: "lams-server",
+  storageBucket: "lams-server.firebasestorage.app",
+  messagingSenderId: "407212363894",
+  appId: "1:407212363894:web:d9e0dbc7a13ff01afc8f57",
+  measurementId: "G-EWRFTG684E"
+};
+
 
 let currentUserRole = 'engineer';
 let currentUserPhone = '';
