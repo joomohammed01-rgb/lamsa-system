@@ -1,123 +1,37 @@
-// 1. تهيئة الاتصال السحابي بـ Supabase
-const SUPABASE_URL = "https://lhyfzbdzppcbwipqdzkv.supabase.co";
-const SUPABASE_KEY = "sb_publishable_vpkNzG861kogYQq2bRpAcw_LfbWt316";
-
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-// 2. دالة تحميل البيانات سحابياً (مع الاحتفاظ بنسخة محلية كاحتياط)
-async function loadData(key, defaultValue) {
-  try {
-    const { data, error } = await supabase
-      .from('lamsa_settings')
-      .select('value')
-      .eq('key', key)
-      .single();
-
-    if (data && data.value) {
-      const parsed = JSON.parse(data.value);
-      localStorage.setItem('lamsa_' + key, data.value);
-      return parsed;
-    }
-  } catch (err) {
-    console.log("الاعتماد على التخزين المحلي مؤقتاً لـ:", key);
-  }
-  
-  const saved = localStorage.getItem('lamsa_' + key);
-  return saved ? JSON.parse(saved) : defaultValue;
+// --- إدارة التخزين المحلي الحقيقي (Persistent Storage) ---
+function loadData(key, defaultVal) {
+    const saved = localStorage.getItem('lamsa_' + key);
+    return saved ? JSON.parse(saved) : defaultVal;
 }
 
-// 3. دالة حفظ البيانات سحابياً ومحلياً في نفس اللحظة
-async function saveData(key, val) {
-  localStorage.setItem('lamsa_' + key, JSON.stringify(val));
-  
-  try {
-    const { error } = await supabase
-      .from('lamsa_settings')
-      .upsert({ key: key, value: JSON.stringify(val) });
-      
-    if (error) console.error("خطأ في المزامنة السحابية:", error);
-  } catch (err) {
-    console.error("فشل الاتصال بـ Supabase أثناء الحفظ:", err);
-  }
+function saveData(key, val) {
+    localStorage.setItem('lamsa_' + key, JSON.stringify(val));
 }
-// دالة تحميل كل البيانات من Supabase عند فتح الموقع
-async function initApp() {
-  projectAutoCounter = await loadData('projectAutoCounter', 1);
-  orderAutoCounter = await loadData('orderAutoCounter', 1);
-  quoteAutoCounter = await loadData('quoteAutoCounter', 1);
-  usersDatabase = await loadData('usersDatabase', {});
-  clientsList = await loadData('clientsList', []);
-  categoriesList = await loadData('categoriesList', []);
-  productsList = await loadData('productsList', []);
-  inventoryList = await loadData('inventoryList', []);
-  projectsList = await loadData('projectsList', []);
-  allOrdersList = await loadData('allOrdersList', []);
-  quotationsList = await loadData('quotationsList', []);
-  financeTransactions = await loadData('financeTransactions', []);
-  trashBinList = await loadData('trashBinList', []);
-  payrollList = await loadData('payrollList', []);
 
-  // تحديث واجهة المستخدم فور الانتهاء من التحميل
-  if (typeof updateHeaderUserInfo === "function") updateHeaderUserInfo();
-  if (typeof renderAll === "function") renderAll();
-}
-// دالة رفع البيانات والحسابات القديمة تلقائياً إلى Supabase
-async function syncOldDataToCloud() {
-  const keysToSync = [
-    'projectAutoCounter',
-    'orderAutoCounter',
-    'quoteAutoCounter',
-    'usersDatabase',
-    'clientsList',
-    'categoriesList',
-    'productsList',
-    'inventoryList',
-    'projectsList',
-    'allOrdersList',
-    'quotationsList',
-    'financeTransactions',
-    'trashBinList',
-    'payrollList'
-  ];
+let currentUserRole = 'engineer';
+let currentUserPhone = '';
 
-  for (const key of keysToSync) {
-    const localVal = localStorage.getItem('lamsa_' + key);
-    if (localVal) {
-      try {
-        const parsed = JSON.parse(localVal);
-        await saveData(key, parsed);
-        console.log(`تم رفع البيانات القديمة للمفتاح: ${key}`);
-      } catch (e) {
-        console.error(`خطأ في رفع المفتاح: ${key}`, e);
-      }
-    }
-  }
-}
-// تشغيل التحميل بمجرد فتح الصفحة
-document.addEventListener("DOMContentLoaded", initApp);
-async function initApp() {
-  projectAutoCounter = await loadData('projectAutoCounter', 1);
-  orderAutoCounter = await loadData('orderAutoCounter', 1);
-  quoteAutoCounter = await loadData('quoteAutoCounter', 1);
-  usersDatabase = await loadData('usersDatabase', {});
-  clientsList = await loadData('clientsList', []);
-  categoriesList = await loadData('categoriesList', []);
-  productsList = await loadData('productsList', []);
-  inventoryList = await loadData('inventoryList', []);
-  projectsList = await loadData('projectsList', []);
-  allOrdersList = await loadData('allOrdersList', []);
-  quotationsList = await loadData('quotationsList', []);
-  financeTransactions = await loadData('financeTransactions', []);
-  trashBinList = await loadData('trashBinList', []);
-  payrollList = await loadData('payrollList', []);
+let projectAutoCounter = loadData('projectAutoCounter', 1);
+let orderAutoCounter = loadData('orderAutoCounter', 1);
+let quoteAutoCounter = loadData('quoteAutoCounter', 1);
+let usersDatabase = loadData('usersDatabase', {});
+let clientsList = loadData('clientsList', []);
+let categoriesList = loadData('categoriesList', []);
+let productsList = loadData('productsList', []);
+let inventoryList = loadData('inventoryList', []);
+let projectsList = loadData('projectsList', []);
+let fullOrdersList = loadData('fullOrdersList', []);
+let quotationsList = loadData('quotationsList', []);
+let financeTransactions = loadData('financeTransactions', []);
 
-  // رفع البيانات القديمة تلقائياً للسيرفر
-  await syncOldDataToCloud();
+let trashBinList = loadData('trashBinList', []);
+let payrollList = loadData('payrollList', []);
 
-  // تحديث واجهة المستخدم فور الانتهاء
-  if (typeof updateHeaderUserInfo === "function") updateHeaderUserInfo();
-  if (typeof renderAll === "function") renderAll();
-}
+let activeQuoteData = null;
+let pastedImageData = null;
+let editTransactionIndex = null;
+let targetOrderIndexToDelete = null;
+
 // --- إدارة تسجيل الدخول والصفحات ---
 function updateHeaderUserInfo() {
     const currentPhone = localStorage.getItem('currentUserPhone');
