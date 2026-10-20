@@ -2427,17 +2427,36 @@ function executeWindowPrint(htmlContent) {
     }, 250);
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    const loggedUserPhone = localStorage.getItem('currentUserPhone');
+document.addEventListener('DOMContentLoaded', async function() {
     const loginSec = document.getElementById('login-section');
     const dashSec = document.getElementById('dashboard-section');
-    usersDatabase = loadData('usersDatabase', {});
 
+    // 1. تحميل كافة المتغيرات الأساسية سحابياً من Firebase أولاً وبانتظار الرد
+    projectAutoCounter = await loadData('projectAutoCounter', 1);
+    orderAutoCounter = await loadData('orderAutoCounter', 1);
+    quoteAutoCounter = await loadData('quoteAutoCounter', 1);
+    usersDatabase = await loadData('usersDatabase', {});
+    clientsList = await loadData('clientsList', []);
+    categoriesList = await loadData('categoriesList', []);
+    productsList = await loadData('productsList', []);
+    inventoryList = await loadData('inventoryList', []);
+    projectsList = await loadData('projectsList', []);
+    fullOrdersList = await loadData('fullOrdersList', []);
+    quotationsList = await loadData('quotationsList', []);
+    financeTransactions = await loadData('financeTransactions', []);
+    trashBinList = await loadData('trashBinList', []);
+
+    // 2. مزامنة البيانات القديمة تلقائياً إلى السحابة لو لسه موجودة محلياً
+    await syncOldDataToFirebase();
+
+    // 3. رسم الجداول والقوائم بعد اكتمال جلب البيانات
     renderAllTables();
     populateOrderDropdowns();
     populateCategoriesDropdown();
 
-    if (loggedUserPhone && usersDatabase[loggedUserPhone]) {
+    // 4. التحقق من حساب المستخدم لتسجيل الدخول
+    const loggedUserPhone = localStorage.getItem('currentUserPhone');
+    if (loggedUserPhone && usersDatabase && usersDatabase[loggedUserPhone]) {
         currentUserPhone = loggedUserPhone;
         currentUserRole = usersDatabase[loggedUserPhone].role || 'engineer';
         if (loginSec) loginSec.classList.add('hidden');
@@ -2449,7 +2468,6 @@ document.addEventListener('DOMContentLoaded', function() {
         localStorage.removeItem('currentUserPhone');
         if (loginSec) loginSec.classList.remove('hidden');
         if (dashSec) dashSec.classList.add('hidden');
-        // شاشة تسجيل الدخول العادية دائماً؛ إنشاء الحسابات من إدارة الموظفين بعد دخول المدير.
         document.getElementById('login-form')?.classList.remove('hidden');
     }
 });
