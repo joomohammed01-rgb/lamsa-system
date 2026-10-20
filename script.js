@@ -1,5 +1,4 @@
-// --- إدارة التخزين المحلي الحقيقي (Persistent Storage) ---
-// --- 1. تهيئة Firebase ---
+// --- 1. تهيئة Firebase Realtime Database ---
 const firebaseConfig = {
   apiKey: "AIzaSyAJm-vim_0omg6GyVzsh1ka0LjtJBgf5aY",
   authDomain: "lams-server.firebaseapp.com",
@@ -10,40 +9,36 @@ const firebaseConfig = {
   appId: "1:407212363894:web:d9e0dbc7a13ff01afc8f57",
   measurementId: "G-EWRFTG684E"
 };
-// تهيئة تطبيق الفايربيس و Firestore
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
 
-// --- 2. دالة تحميل البيانات من Firestore (مع المزامنة المحلية احتياطاً) ---
+// تهيئة Firebase SDK v10 (Realtime Database)
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// --- 2. دالة تحميل البيانات من Realtime Database ---
 async function loadData(key, defaultVal) {
   try {
-    const docRef = db.collection('lamsa_data').doc(key);
-    const docSnap = await docRef.get();
-
-    if (docSnap.exists) {
-      const dataVal = docSnap.data().value;
+    const snapshot = await db.ref('lamsa_data/' + key).once('value');
+    if (snapshot.exists()) {
+      const dataVal = snapshot.val();
       localStorage.setItem('lamsa_' + key, JSON.stringify(dataVal));
       return dataVal;
     }
   } catch (err) {
-    console.warn(`تعذر الاتصال بـ Firebase للمفتاح ${key}، جاري الاعتماد على التخزين المحلي:`, err);
+    console.warn(`تعذر الاتصال بـ Firebase للمفتاح ${key}:`, err);
   }
 
   const saved = localStorage.getItem('lamsa_' + key);
   return saved ? JSON.parse(saved) : defaultVal;
 }
 
-// --- 3. دالة حفظ البيانات في Firestore والتخزين المحلي في نفس الوقت ---
+// --- 3. دالة حفظ البيانات في Realtime Database ---
 async function saveData(key, val) {
   // حفظ محلي سريع
   localStorage.setItem('lamsa_' + key, JSON.stringify(val));
 
-  // رفع سحابي إلى Firebase Firestore
+  // رفع سحابي إلى Firebase
   try {
-    await db.collection('lamsa_data').doc(key).set({
-      value: val,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    await db.ref('lamsa_data/' + key).set(val);
   } catch (err) {
     console.error(`خطأ في رفع البيانات إلى Firebase للمفتاح (${key}):`, err);
   }
@@ -71,25 +66,23 @@ async function syncOldDataToFirebase() {
   }
 }
 
-
 let currentUserRole = 'engineer';
 let currentUserPhone = '';
 
-let projectAutoCounter = loadData('projectAutoCounter', 1);
-let orderAutoCounter = loadData('orderAutoCounter', 1);
-let quoteAutoCounter = loadData('quoteAutoCounter', 1);
-let usersDatabase = loadData('usersDatabase', {});
-let clientsList = loadData('clientsList', []);
-let categoriesList = loadData('categoriesList', []);
-let productsList = loadData('productsList', []);
-let inventoryList = loadData('inventoryList', []);
-let projectsList = loadData('projectsList', []);
-let fullOrdersList = loadData('fullOrdersList', []);
-let quotationsList = loadData('quotationsList', []);
-let financeTransactions = loadData('financeTransactions', []);
-
-let trashBinList = loadData('trashBinList', []);
-let payrollList = loadData('payrollList', []);
+let projectAutoCounter = 1;
+let orderAutoCounter = 1;
+let quoteAutoCounter = 1;
+let usersDatabase = {};
+let clientsList = [];
+let categoriesList = [];
+let productsList = [];
+let inventoryList = [];
+let projectsList = [];
+let fullOrdersList = [];
+let quotationsList = [];
+let financeTransactions = [];
+let trashBinList = [];
+let payrollList = [];
 
 let activeQuoteData = null;
 let pastedImageData = null;
