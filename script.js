@@ -1,10 +1,6 @@
 // --- إدارة التخزين المحلي الحقيقي (Persistent Storage) ---
-function loadData(key, defaultVal) {
-    const saved = localStorage.getItem('lamsa_' + key);
-    return saved ? JSON.parse(saved) : defaultVal;
-}
-
-function saveData(key, val) {
+// --- 1. تهيئة Firebase ---
+const firebaseConfig = {
   apiKey: "AIzaSyAJm-vim_0omg6GyVzsh1ka0LjtJBgf5aY",
   authDomain: "lams-server.firebaseapp.com",
   databaseURL: "https://lams-server-default-rtdb.firebaseio.com",
@@ -14,6 +10,66 @@ function saveData(key, val) {
   appId: "1:407212363894:web:d9e0dbc7a13ff01afc8f57",
   measurementId: "G-EWRFTG684E"
 };
+// تهيئة تطبيق الفايربيس و Firestore
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// --- 2. دالة تحميل البيانات من Firestore (مع المزامنة المحلية احتياطاً) ---
+async function loadData(key, defaultVal) {
+  try {
+    const docRef = db.collection('lamsa_data').doc(key);
+    const docSnap = await docRef.get();
+
+    if (docSnap.exists) {
+      const dataVal = docSnap.data().value;
+      localStorage.setItem('lamsa_' + key, JSON.stringify(dataVal));
+      return dataVal;
+    }
+  } catch (err) {
+    console.warn(`تعذر الاتصال بـ Firebase للمفتاح ${key}، جاري الاعتماد على التخزين المحلي:`, err);
+  }
+
+  const saved = localStorage.getItem('lamsa_' + key);
+  return saved ? JSON.parse(saved) : defaultVal;
+}
+
+// --- 3. دالة حفظ البيانات في Firestore والتخزين المحلي في نفس الوقت ---
+async function saveData(key, val) {
+  // حفظ محلي سريع
+  localStorage.setItem('lamsa_' + key, JSON.stringify(val));
+
+  // رفع سحابي إلى Firebase Firestore
+  try {
+    await db.collection('lamsa_data').doc(key).set({
+      value: val,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch (err) {
+    console.error(`خطأ في رفع البيانات إلى Firebase للمفتاح (${key}):`, err);
+  }
+}
+
+// --- 4. دالة مزامنة البيانات القديمة (Migration) لمرة واحدة ---
+async function syncOldDataToFirebase() {
+  const keysToSync = [
+    'projectAutoCounter', 'orderAutoCounter', 'quoteAutoCounter',
+    'usersDatabase', 'clientsList', 'categoriesList', 'productsList',
+    'inventoryList', 'projectsList', 'fullOrdersList', 'quotationsList',
+    'financeTransactions', 'trashBinList', 'payrollList'
+  ];
+
+  for (const key of keysToSync) {
+    const localVal = localStorage.getItem('lamsa_' + key);
+    if (localVal) {
+      try {
+        const parsed = JSON.parse(localVal);
+        await saveData(key, parsed);
+      } catch (e) {
+        console.error(`خطأ أثناء رفع البيانات القديمة للمفتاح ${key}:`, e);
+      }
+    }
+  }
+}
 
 
 let currentUserRole = 'engineer';
