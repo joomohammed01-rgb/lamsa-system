@@ -15,37 +15,47 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 // --- 2. دالة تحميل البيانات من Realtime Database ---
+// --- 1. إعدادات وقاعدة بيانات Supabase ---
+// (ملاحظة: _supabase يتم تعريفه مسبقاً في ملف supabase-client.js أو cloud-bridge.js)
+
+// --- 2. دالة تحميل البيانات من Supabase ---
 async function loadData(key, defaultVal) {
   try {
-    const snapshot = await db.ref('lamsa_data/' + key).once('value');
-    if (snapshot.exists()) {
-      const dataVal = snapshot.val();
-      localStorage.setItem('lamsa_' + key, JSON.stringify(dataVal));
-      return dataVal;
+    const { data, error } = await _supabase
+      .from('lamsa_storage')
+      .select('value')
+      .eq('key', key)
+      .single();
+
+    if (!error && data && data.value) {
+      localStorage.setItem('lamsa_' + key, JSON.stringify(data.value));
+      return data.value;
     }
   } catch (err) {
-    console.warn(`تعذر الاتصال بـ Firebase للمفتاح ${key}:`, err);
+    console.warn(`تعذر الاتصال بـ Supabase للمفتاح ${key}:`, err);
   }
 
   const saved = localStorage.getItem('lamsa_' + key);
   return saved ? JSON.parse(saved) : defaultVal;
 }
 
-// --- 3. دالة حفظ البيانات في Realtime Database ---
+// --- 3. دالة حفظ البيانات في Supabase ---
 async function saveData(key, val) {
-  // حفظ محلي سريع
+  // حفظ محلي سريع لضمان سلاسة الواجهة
   localStorage.setItem('lamsa_' + key, JSON.stringify(val));
 
-  // رفع سحابي إلى Firebase
   try {
-    await db.ref('lamsa_data/' + key).set(val);
+    // رفع البيانات إلى جدول lamsa_storage في Supabase
+    await _supabase
+      .from('lamsa_storage')
+      .upsert({ key: key, value: val }, { onConflict: 'key' });
   } catch (err) {
-    console.error(`خطأ في رفع البيانات إلى Firebase للمفتاح (${key}):`, err);
+    console.error(`خطأ في رفع البيانات إلى Supabase للمفتاح (${key}):`, err);
   }
 }
 
-// --- 4. دالة مزامنة البيانات القديمة (Migration) لمرة واحدة ---
-async function syncOldDataToFirebase() {
+// --- 4. مزامنة البيانات القديمة (Migration) لمرة واحدة ---
+async function syncOldDataToSupabase() {
   const keysToSync = [
     'projectAutoCounter', 'orderAutoCounter', 'quoteAutoCounter',
     'usersDatabase', 'clientsList', 'categoriesList', 'productsList',
@@ -88,7 +98,6 @@ let activeQuoteData = null;
 let pastedImageData = null;
 let editTransactionIndex = null;
 let targetOrderIndexToDelete = null;
-
 // --- إدارة تسجيل الدخول والصفحات ---
 function updateHeaderUserInfo() {
     const currentPhone = localStorage.getItem('currentUserPhone');
@@ -118,41 +127,63 @@ function getCurrentUserName() {
     return 'مدير النظام';
 }
 
-function handleLogin(event) {
-    event.preventDefault();
-    const phone = document.getElementById('username').value.trim();
-    const pass = document.getElementById('password').value.trim();
+// --- دالة تسجيل الدخول المتوافقة مع Supabase ---
+async function handleLogin(event) {
+    if (event) event.preventDefault();
 
-    const user = usersDatabase[phone];
-    if (!user || user.pass !== pass) {
-        alert('خطأ: بيانات الدخول غير صحيحة!');
+    const phoneInput = document.getElementById('username');
+    const passInput = document.getElementById('password');
+
+    const phone = phoneInput ? phoneInput.value.trim() : '';
+    const pass = passInput ? passInput.value.trim() : '';
+
+    if (!phone || !pass) {
+        alert('برجاء إدخال رقم الهاتف وكلمة المرور');
         return;
     }
 
-    localStorage.setItem('currentUserPhone', phone);
+    try {
+        const { data: users, error } = await _supabase
+            .from('users')
+            .select('*')
+            .eq('phone', phone);
 
-    const nameEl = document.getElementById('display-username');
-    const roleEl = document.getElementById('display-role');
-    if (nameEl) nameEl.textContent = user.name;
-    if (roleEl) roleEl.textContent = user.role || 'موظف';
+        if (error || !users || users.length === 0) {
+            alert('خطأ: رقم الهاتف غير مسجل بالنظام!');
+            return;
+        }
 
-    document.getElementById('login-section').classList.add('hidden');
-    document.getElementById('dashboard-section').classList.remove('hidden');
+        const user = users[0];
 
-    renderAllTables();
-    populateOrderDropdowns();
-    populateCategoriesDropdown();
+        if (user.pass !== pass && user.password !== pass) {
+            alert('خطأ: كلمة المرور غير صحيحة!');
+            return;
+        }
 
-    applyUserPermissions();
-    switchTab('home');
+        currentUserPhone = phone;
+        currentUserRole = user.role || 'engineer';
+        localStorage.setItem('currentUserPhone', phone);
+
+        const nameEl = document.getElementById('display-username');
+        const roleEl = document.getElementById('display-role');
+        if (nameEl) nameEl.textContent = user.name || 'موظف';
+        if (roleEl) roleEl.textContent = user.title || (user.role === 'admin' ? 'مدير النظام' : 'موظف');
+
+        document.getElementById('login-section')?.classList.add('hidden');
+        document.getElementById('dashboard-section')?.classList.remove('hidden');
+
+        if (typeof renderAllTables === 'function') renderAllTables();
+        if (typeof populateOrderDropdowns === 'function') populateOrderDropdowns();
+        if (typeof populateCategoriesDropdown === 'function') populateCategoriesDropdown();
+
+        if (typeof applyUserPermissions === 'function') applyUserPermissions();
+        if (typeof switchTab === 'function') switchTab('home');
+
+    } catch (err) {
+        console.error('خطأ أثناء عملية تسجيل الدخول عبر Supabase:', err);
+        alert('حدث خطأ في الاتصال بقاعدة البيانات السحابية!');
+    }
 }
-
-function hasPerm(permKey) {
-    if (currentUserRole === 'admin') return true;
-    const u = usersDatabase[currentUserPhone];
-    return u && u.perms && u.perms[permKey];
-}
-
 function switchTab(pageId) {
     // 1. إخفاء كل صفحات الـ tab والـ page الموجودة في النظام
     const allPages = document.querySelectorAll('.tab-page');
