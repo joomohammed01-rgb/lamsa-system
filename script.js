@@ -127,7 +127,6 @@ function getCurrentUserName() {
     return 'مدير النظام';
 }
 
-// --- دالة تسجيل الدخول المتوافقة مع Supabase ---
 async function handleLogin(event) {
     if (event) event.preventDefault();
 
@@ -142,6 +141,42 @@ async function handleLogin(event) {
         return;
     }
 
+    // --- 1. حساب المدير الثابت في الكود للتجربة السريعة ---
+    const HARDCODED_ADMIN_PHONE = "01063292810";
+    const HARDCODED_ADMIN_PASS  = "123456"; // يمكنك تغيير الباسورد هنا كما تشاء
+
+    if (phone === HARDCODED_ADMIN_PHONE && pass === HARDCODED_ADMIN_PASS) {
+        currentUserPhone = phone;
+        currentUserRole = 'admin';
+        localStorage.setItem('currentUserPhone', phone);
+
+        // إضافة بيانات الحساب في ذاكرة النظام المحلية
+        usersDatabase[phone] = {
+            name: 'باشمهندس يوسف (Admin)',
+            role: 'admin',
+            title: 'مدير النظام',
+            pass: pass,
+            perms: { viewHome: true, viewUsers: true, viewClients: true, viewProducts: true, viewProjects: true, viewOrders: true, viewSales: true, viewFinance: true }
+        };
+
+        const nameEl = document.getElementById('display-username');
+        const roleEl = document.getElementById('display-role');
+        if (nameEl) nameEl.textContent = 'باشمهندس يوسف';
+        if (roleEl) roleEl.textContent = 'مدير النظام';
+
+        document.getElementById('login-section')?.classList.add('hidden');
+        document.getElementById('dashboard-section')?.classList.remove('hidden');
+
+        if (typeof renderAllTables === 'function') renderAllTables();
+        if (typeof populateOrderDropdowns === 'function') populateOrderDropdowns();
+        if (typeof populateCategoriesDropdown === 'function') populateCategoriesDropdown();
+        if (typeof applyUserPermissions === 'function') applyUserPermissions();
+        if (typeof switchTab === 'function') switchTab('home');
+
+        return; // الدخول فوراً
+    }
+
+    // --- 2. البحث في Supabase لبقية الموظفين ---
     try {
         const { data: users, error } = await _supabase
             .from('users')
@@ -175,7 +210,6 @@ async function handleLogin(event) {
         if (typeof renderAllTables === 'function') renderAllTables();
         if (typeof populateOrderDropdowns === 'function') populateOrderDropdowns();
         if (typeof populateCategoriesDropdown === 'function') populateCategoriesDropdown();
-
         if (typeof applyUserPermissions === 'function') applyUserPermissions();
         if (typeof switchTab === 'function') switchTab('home');
 
